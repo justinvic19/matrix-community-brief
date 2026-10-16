@@ -5,11 +5,30 @@ import { connectMatrix } from './matrix/client';
 import { loadConnection, saveConnection } from './connectionCache';
 
 vi.mock('./matrix/client', () => ({ connectMatrix: vi.fn() }));
-beforeEach(() => { localStorage.clear(); vi.mocked(connectMatrix).mockReset(); });
+beforeEach(() => { localStorage.clear(); window.history.replaceState(null, '', '/'); vi.mocked(connectMatrix).mockReset(); });
 afterEach(() => { cleanup(); vi.restoreAllMocks(); });
 const value = (label: string) => (screen.getByLabelText(label) as HTMLInputElement).value;
 const edit = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
 const saved = { homeserver: 'https://other.example.org', token: 'fictional-test-token', roomId: '!example-room' };
+
+it('prefills a linked room without accepting linked credentials or connecting automatically', () => {
+  saveConnection(saved);
+  window.history.replaceState(null, '', '/?roomId=%21linked%3Aexample.org&homeserver=https://untrusted.example&token=untrusted#activity-one');
+  render(<App />);
+  expect(value('Room ID')).toBe('!linked:example.org');
+  expect(value('Homeserver URL')).toBe(saved.homeserver);
+  expect(value('Matrix access token (manual option)')).toBe(saved.token);
+  expect(connectMatrix).not.toHaveBeenCalled();
+});
+it('ignores invalid linked rooms and clears tokens when switching account servers', () => {
+  saveConnection(saved);
+  window.history.replaceState(null, '', '/?roomId=not-a-room');
+  render(<App />);
+  expect(value('Room ID')).toBe(saved.roomId);
+  edit('Homeserver URL', 'https://different.example');
+  expect(value('Matrix access token (manual option)')).toBe('');
+  expect(loadConnection().token).toBe('');
+});
 
 it('defaults the homeserver and restores all last inputs after reopening, without automatically connecting', () => {
   const first = render(<App />);

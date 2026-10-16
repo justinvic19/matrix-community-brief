@@ -57,3 +57,4 @@ main{max-width:1120px}
 .icon-button:hover{background:#1e4c3d;border-color:#1e4c3d}
 .summary-icon{width:16px;height:16px;flex:none;color:currentColor;vertical-align:middle}
 .activity-summary-fact{align-items:center}
+.account-connection-fields{display:grid;grid-template-columns:1fr 1fr;gap:20px}.account-connection-fields label{min-width:0}@media(max-width:640px){.account-connection-fields{grid-template-columns:1fr;gap:0}}

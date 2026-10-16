@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { connectMatrix, normalizeHomeserver, validateRoomId } from './matrix/client';
 import { signInWithMatrix, type DeviceAuthorizationPrompt, type OAuthSession } from './matrix/auth';
 import { forgetOAuthSession, loadOAuthSession, saveOAuthSession } from './matrix/authSessionCache';
-import { defaultConnection, forgetConnection, loadConnection, saveConnection, type ConnectionPreferences } from './connectionCache';
+import { defaultConnection, forgetConnection, loadLinkedConnection, saveConnection, type ConnectionPreferences } from './connectionCache';
 import { defaultElementWebUrl, matrixServerName, normalizeElementWebUrl } from './matrix/roomLink';
 import type { BriefStore } from './matrix/eventStore';
 import { BriefPage } from './features/community-brief/BriefPage';
@@ -13,7 +13,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [roomId, setRoomId] = useState('');
   const [elementWebUrl, setElementWebUrl] = useState('');
-  const [connection, setConnection] = useState(loadConnection);
+  const [connection, setConnection] = useState(loadLinkedConnection);
   const [oauthSession, setOAuthSession] = useState(loadOAuthSession);
   const [usingOAuthSession, setUsingOAuthSession] = useState(false);
   const [loginPrompt, setLoginPrompt] = useState<DeviceAuthorizationPrompt | null>(null);
@@ -38,7 +38,7 @@ export default function App() {
   function changeConnection(field: keyof ConnectionPreferences, value: string) {
     const next = { ...connection, [field]: value };
     // A custom web client belongs to the saved homeserver, not the next provider.
-    if (field === 'homeserver' && value !== connection.homeserver) delete next.elementWebUrl;
+    if (field === 'homeserver' && value !== connection.homeserver) { delete next.elementWebUrl; next.token = ''; }
     setConnection(next);
     setStorageMessage(saveConnection(next) ? '' : 'Browser storage is unavailable. You can still connect, but these changes will not be remembered after a reload.');
   }
@@ -138,8 +138,15 @@ export default function App() {
       finally { if (generation.current === attempt) setBusy(false); }
     }}><h2>Connect to your room</h2><p>Join the room in Element first, then enter its room ID below.</p>{error && <p role="alert" className="error">{error}</p>}
       <fieldset disabled={busy}>
-        <label>Homeserver URL<input name="homeserver" type="url" placeholder="https://matrix.org" value={connection.homeserver} onChange={e => changeConnection('homeserver', e.target.value)} required /></label>
+        <h3>Room to open</h3>
         <label>Room ID<input name="roomId" placeholder="!room:example.org" value={connection.roomId} onChange={e => changeConnection('roomId', e.target.value)} required /></label>
+        <h3>Your Matrix account</h3>
+        <p className="muted" id="homeserver-help">Use your account's homeserver API URL, not the room creator's server or the Element website. Your access token must belong to this server. Changing server clears the manual token.</p>
+        <div className="account-connection-fields">
+          <label>Homeserver URL<input name="homeserver" type="url" placeholder="https://matrix.org" value={connection.homeserver} onChange={e => changeConnection('homeserver', e.target.value)} aria-describedby="homeserver-help" required /></label>
+          <label>Matrix access token (manual option)<input name="token" type="password" autoComplete="off" value={connection.token} onChange={e => changeConnection('token', e.target.value)} /></label>
+        </div>
+        <p className="muted">Sign in with Matrix if your homeserver supports device-code sign-in, or paste a token above and choose Connect.</p>
         {oauthSession && oauthSession.homeserver === (() => { try { return normalizeHomeserver(connection.homeserver); } catch { return ''; } })() && <button type="button" onClick={() => void connectWithSavedSession()}>{busy ? 'Connecting…' : `Continue as ${oauthSession.userId}`}</button>}
         <button type="button" onClick={() => void startMatrixSignIn()}>{busy ? 'Signing in…' : oauthSession ? 'Sign in with a different account' : 'Sign in with Matrix'}</button>
         {loginPrompt && <div className="notice" role="status">
@@ -147,7 +154,6 @@ export default function App() {
           <p><a href={loginPrompt.verificationUriComplete || loginPrompt.verificationUri} target="_blank" rel="noopener noreferrer">Open the homeserver sign-in page</a></p>
           <p>Enter this one-time code: <strong className="device-code">{loginPrompt.userCode}</strong></p>
         </div>}
-        <label>Matrix access token (manual option)<input name="token" type="password" autoComplete="off" value={connection.token} onChange={e => changeConnection('token', e.target.value)} /></label>
         <button type="submit">{busy ? 'Connecting…' : 'Connect'}</button>
         <details className="element-settings"><summary>Element room links</summary>
           <label>Element Web URL (optional)<input name="elementWebUrl" type="url" placeholder={defaultElementWebUrl(connection.homeserver)} value={connection.elementWebUrl ?? ''} onChange={e => changeConnection('elementWebUrl', e.target.value)} aria-describedby="element-web-help" /></label>

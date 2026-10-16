@@ -4,6 +4,13 @@ export interface ConnectionPreferences extends Connection { elementWebUrl?: stri
 const STORAGE_KEY = 'living-community-brief.connection.v1';
 export const defaultConnection = (): ConnectionPreferences => ({ homeserver: 'https://matrix.org', token: '', roomId: '' });
 
+export function loadLinkedConnection(): ConnectionPreferences {
+  const saved = loadConnection();
+  const linkedRoom = new URLSearchParams(window.location.search).get('roomId');
+  // A shared link selects a room, never the recipient's account or credentials.
+  return linkedRoom && /^!\S+$/.test(linkedRoom) ? { ...saved, roomId: linkedRoom } : saved;
+}
+
 export function loadConnection(): ConnectionPreferences {
   const defaults = defaultConnection();
   try {

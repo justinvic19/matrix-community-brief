@@ -151,7 +151,7 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
       try {
         await publishBrief({ canEdit: () => canEdit() && !snapshot.error, publish: async (type, key, content) => {
           const before = lastPublished ?? snapshot.brief;
-          const notices = activityAnnouncements(before, content);
+          const notices = activityAnnouncements(before, content, roomId);
           try { await client.sendStateEvent(roomId, type, content, key); } catch (error) { throw new Error(matrixError(error)); }
           // Track accepted saves for diffing without injecting an optimistic UI state.
           lastPublished = content;
@@ -179,7 +179,7 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
       if (signedUp && activity.maxParticipants !== null && activeUsers.length >= activity.maxParticipants) throw new Error('This activity has reached its sign-up limit.');
       try {
         await client.sendEvent(roomId, EventType.RoomMessage, {
-          ...activityNotice(activity, signedUp ? `${userId} signed up for` : `${userId} withdrew from`),
+          ...activityNotice(activity, signedUp ? `${userId} signed up for` : `${userId} withdrew from`, roomId),
           [SIGNUP_CONTENT_KEY]: { activityId, signedUp },
         } as never);
       } catch (error) { throw new Error(matrixError(error)); }

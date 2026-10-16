@@ -16,6 +16,23 @@ export interface OAuthSession {
   userId: string;
 }
 
+export function oauthClientMetadata(pageUrl: string): Record<string, unknown> {
+  const url = new URL(pageUrl);
+  url.search = '';
+  url.hash = '';
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) throw new Error('Matrix sign-in requires HTTPS except on localhost.');
+  return {
+    application_type: local ? 'native' : 'web',
+    client_name: 'Living Community Brief',
+    client_uri: url.href,
+    redirect_uris: [url.href],
+    token_endpoint_auth_method: 'none',
+    response_types: ['code'],
+    grant_types: [OAuthGrantType.AuthorizationCode, OAuthGrantType.RefreshToken, OAuthGrantType.DeviceAuthorization],
+  };
+}
+
 function randomString(length: number): string {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   const bytes = crypto.getRandomValues(new Uint8Array(length));
@@ -38,6 +55,7 @@ function delay(milliseconds: number, signal: AbortSignal): Promise<void> {
 async function registerOAuthClient(
   endpoint: string,
   clientMetadata: Record<string, unknown>,
+  signal: AbortSignal,
 ): Promise<string> {
   let response: Response;
   try {
@@ -45,6 +63,7 @@ async function registerOAuthClient(
       method: 'POST',
       headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(clientMetadata),
+      signal,
     });
   } catch {
     throw new Error('The browser could not reach the homeserver registration endpoint. Check the homeserver URL and whether it allows browser sign-in requests (CORS).');
@@ -88,13 +107,7 @@ export async function signInWithMatrix(
   const deviceId = randomString(10);
   let clientId: string;
   try {
-    clientId = await registerOAuthClient(metadata.registration_endpoint, {
-      application_type: 'native',
-      client_name: 'Living Community Brief',
-      client_uri: 'https://localhost/',
-      redirect_uris: ['http://localhost/callback'],
-      grant_types: [OAuthGrantType.AuthorizationCode, OAuthGrantType.RefreshToken, OAuthGrantType.DeviceAuthorization],
-    });
+    clientId = await registerOAuthClient(metadata.registration_endpoint, oauthClientMetadata(window.location.href), signal);
   } catch (error) {
     throw new Error(`Could not register this app with the homeserver. ${error instanceof Error ? error.message : 'Unexpected registration error.'}`.trim());
   }

@@ -98,7 +98,12 @@ Settings-only changes and unchanged saves do not post notices.
 After an accepted activity change, this app posts an `m.notice` in the same room.
 Activity titles in these notices and sign-up/withdrawal messages link to the
 published brief site and expand that activity after the viewer connects to the
-appropriate room. Removed activities no longer have a card; their links still
+appropriate room. New links include a `roomId` query parameter that prefills the
+connection form, overriding only the saved room selection. They never choose a
+homeserver, supply a token, or connect automatically. The visitor uses their own
+account's homeserver and credentials. Changing homeserver clears the manual token.
+The room ID is visible to anyone with the link; Matrix still enforces membership.
+Removed activities no longer have a card; their links still
 open the brief. Links contain no credentials. The deployment URL is configured
 in `src/matrix/announcements.ts`; update it if moving the site.
 

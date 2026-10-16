@@ -4,6 +4,16 @@ import { activityAnnouncements, activityNotice, BRIEF_SITE_URL } from './announc
 
 const activity = { ...emptyActivity('a/#'), title: '<Meet & greet>' };
 const brief = { ...emptyBrief(), activities: [activity] };
+it('includes the exact room ID in lifecycle and signup links', () => {
+  const roomId = '!opaque:example.org';
+  const notices = [activityNotice(activity, 'Signed up for', roomId), ...activityAnnouncements(null, brief, roomId), ...activityAnnouncements(brief, emptyBrief(), roomId)];
+  for (const notice of notices) {
+    const link = new URL(notice.body.slice(notice.body.indexOf('https://')));
+    expect(link.searchParams.get('roomId')).toBe(roomId);
+    expect(link.hash).toBe('#activity-a%2F%23');
+    expect([...link.searchParams.keys()]).toEqual(['roomId']);
+  }
+});
 it('links and escapes activity names, with a plain-text fallback and no mentions', () => {
   const notice = activityNotice(activity, '@member:server signed up for');
   expect(notice.formatted_body).toContain('&lt;Meet &amp; greet&gt;</a>');
