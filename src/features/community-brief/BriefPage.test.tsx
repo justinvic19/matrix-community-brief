@@ -5,6 +5,23 @@ import { emptyActivity, emptyBrief } from '../../domain/brief';
 import type { BriefStore, Snapshot } from '../../matrix/eventStore';
 import { BriefPage } from './BriefPage';
 afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
+it('saves the organiser announcement preference and closes the editor on a partial success', async () => {
+  const app = setup(); const user = userEvent.setup();
+  vi.mocked(app.store.save).mockResolvedValue({ warning: 'The brief was saved, but the announcement failed.' });
+  await user.click(screen.getByRole('button', { name: 'Edit activity' }));
+  await user.selectOptions(screen.getByRole('combobox', { name: /Room announcements/ }), 'off');
+  await user.click(screen.getByRole('button', { name: 'Save to Matrix' }));
+  expect(vi.mocked(app.store.save).mock.calls[0][0].activities[0].announcementLevel).toBe('off');
+  expect(screen.queryByLabelText('Activity title')).toBeNull();
+  expect(screen.getByText(/The brief was saved, but the announcement failed/)).toBeTruthy();
+});
+it('opens the activity targeted by an announcement link', () => {
+  window.history.replaceState(null, '', '#activity-original');
+  const app = setup();
+  expect((document.querySelector('.activity-details') as HTMLDetailsElement).open).toBe(true);
+  app.unmount();
+  window.history.replaceState(null, '', window.location.pathname);
+});
 function setup(canEdit = true, identity: BriefStore['identity'] = { userId: '@test:example.org', homeserver: 'https://matrix.example.org' }) {
   let listener: (state: Snapshot) => void = () => {};
   let state: Snapshot = { brief: { ...emptyBrief(), activities: [{ ...emptyActivity('original'), title: 'Original plan' }] }, status: 'live', canEdit, canSignup: true, signups: {} };

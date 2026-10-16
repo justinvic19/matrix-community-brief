@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { emptyActivity, emptyBrief, type Activity, type Brief } from '../../domain/brief';
 import type { BriefStore, Snapshot } from '../../matrix/eventStore';
 import { BriefEditor } from './BriefEditor';
@@ -15,8 +15,21 @@ function SummaryIcon({ kind }: { kind: 'date' | 'location' | 'people' }) {
 function ActivityCard({ activity, updatedAt, canEdit, canSignup, signups, userId, onSignup, onEdit, onRemove }: { activity: Activity; updatedAt: string; canEdit: boolean; canSignup: boolean; signups: string[]; userId: string; onSignup: (signedUp: boolean) => Promise<void>; onEdit: () => void; onRemove: () => void }) {
   const completedCount = activity.tasks.filter(task => task.completed).length;
   const signedUp = signups.includes(userId);
-  return <article className="activity-card">
-    <details className="activity-details">
+  const detailsRef = useRef<HTMLDetailsElement>(null);
+  const anchor = `activity-${encodeURIComponent(activity.id)}`;
+  useEffect(() => {
+    const reveal = () => {
+      if (window.location.hash === `#${anchor}` && detailsRef.current) {
+        detailsRef.current.open = true;
+        detailsRef.current.scrollIntoView?.({ block: 'start' });
+      }
+    };
+    reveal();
+    window.addEventListener('hashchange', reveal);
+    return () => window.removeEventListener('hashchange', reveal);
+  }, [anchor]);
+  return <article className="activity-card" id={anchor}>
+    <details className="activity-details" ref={detailsRef}>
       <summary>
         <span className="activity-summary-title" role="heading" aria-level={2}>{activity.title || 'Untitled activity'}</span>
         <span className="activity-summary-meta">
@@ -83,8 +96,9 @@ export function BriefPage({ store, roomId, elementWebUrl = defaultElementWebUrl(
       ? latest.activities.map((item, index) => index === existingIndex ? activity : item)
       : [...latest.activities, activity];
     const next: Brief = { schemaVersion: 3, activities, updatedAt: new Date().toISOString() };
-    await store.save(next);
+    const result = await store.save(next);
     setEditing(null);
+    if (result?.warning) { setMessage(result.warning); return; }
     setMessage('Save accepted by Matrix. The activities below follow the room’s live state.');
   }
 
@@ -92,7 +106,8 @@ export function BriefPage({ store, roomId, elementWebUrl = defaultElementWebUrl(
     if (!window.confirm('Remove this activity from the shared room brief?')) return;
     const latest = brief ?? emptyBrief();
     try {
-      await store.save({ schemaVersion: 3, activities: latest.activities.filter(activity => activity.id !== activityId), updatedAt: new Date().toISOString() });
+      const result = await store.save({ schemaVersion: 3, activities: latest.activities.filter(activity => activity.id !== activityId), updatedAt: new Date().toISOString() });
+      if (result?.warning) { setMessage(result.warning); return; }
       setMessage('Activity removed from the shared room brief.');
     } catch (cause) { setMessage((cause as Error).message); }
   }

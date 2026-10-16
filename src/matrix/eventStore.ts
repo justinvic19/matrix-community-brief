@@ -11,7 +11,7 @@ export function parseSignupAction(value: unknown): SignupAction | null {
     : null;
 }
 export interface Snapshot { brief: Brief | null; canEdit: boolean; canSignup?: boolean; signupsReady?: boolean; signups?: Record<string, string[]>; status: 'loading' | 'live' | 'offline'; roomName?: string; roomCreatorUserId?: string; roomCreatorServer?: string; error?: string }
-export interface BriefStore { readonly identity: { readonly userId: string; readonly homeserver: string }; subscribe(listener: (snapshot: Snapshot) => void): () => void; reconnect(): boolean; save(brief: Brief): Promise<void>; setSignup(activityId: string, signedUp: boolean): Promise<void>; close(): void }
+export interface BriefStore { readonly identity: { readonly userId: string; readonly homeserver: string }; subscribe(listener: (snapshot: Snapshot) => void): () => void; reconnect(): boolean; save(brief: Brief): Promise<void | { warning: string }>; setSignup(activityId: string, signedUp: boolean): Promise<void>; close(): void }
 export interface StateAdapter { canEdit(): boolean; publish(type: typeof BRIEF_EVENT, key: typeof STATE_KEY, content: Brief): Promise<unknown> }
 export async function publishBrief(adapter: StateAdapter, brief: Brief): Promise<void> {
   if (!adapter.canEdit()) throw new Error('Your room permissions do not allow editing this brief.');

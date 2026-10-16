@@ -1,5 +1,6 @@
 export interface Task { id: string; text: string; completed: boolean }
-export interface Activity { id: string; title: string; description: string; scheduledAt: string; location: string; announcement: string; maxParticipants: number | null; tasks: Task[] }
+export type AnnouncementLevel = 'off' | 'major' | 'all';
+export interface Activity { id: string; title: string; description: string; scheduledAt: string; location: string; announcement: string; announcementLevel?: AnnouncementLevel; maxParticipants: number | null; tasks: Task[] }
 export interface Brief { schemaVersion: 3; activities: Activity[]; updatedAt: string }
 interface LegacyBrief { schemaVersion: 1; title: string; description: string; scheduledAt: string; location: string; announcement: string; tasks: Task[]; updatedAt: string }
 interface ActivitiesBriefV2 { schemaVersion: 2; activities: Omit<Activity, 'maxParticipants'>[]; updatedAt: string }
@@ -17,6 +18,7 @@ function validTasks(value: unknown): value is Task[] {
 function activityProblem(value: unknown): string | null {
   if (!isRecord(value)) return 'must be an object';
   if (typeof value.id !== 'string' || !value.id.length) return 'is missing its ID';
+  if (value.announcementLevel !== undefined && !['off', 'major', 'all'].includes(value.announcementLevel as string)) return 'announcement level must be off, major, or all';
   for (const key of ['title', 'description', 'scheduledAt', 'location', 'announcement']) {
     if (typeof value[key] !== 'string') return `${key} must be text`;
   }

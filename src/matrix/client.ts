@@ -1,5 +1,6 @@
 import { createClient, ClientEvent, EventStatus, EventTimeline, EventType, RoomEvent, RoomStateEvent, SyncState, type MatrixClient, type MatrixEvent, type Room } from 'matrix-js-sdk';
 import { parseBrief } from '../domain/brief';
+import { activityAnnouncements, activityNotice } from './announcements';
 import { BRIEF_EVENT, SIGNUP_CONTENT_KEY, STATE_KEY, matrixError, parseSignupAction, publishBrief, type BriefStore, type Snapshot } from './eventStore';
 export interface Connection {
   homeserver: string;
@@ -57,6 +58,9 @@ export async function connectMatrix(input: Connection): Promise<BriefStore> {
 export function createRoomStore(client: MatrixClient, roomId: string, userId: string, homeserver: string): BriefStore {
   let closed = false;
   let prepared = false;
+  let saving = false;
+  let lastPublished: ReturnType<typeof parseBrief> = null;
+  let lastObservedEventId: string | undefined;
   let snapshot: Snapshot = { brief: null, canEdit: false, canSignup: false, signupsReady: false, signups: {}, status: 'loading' };
   const listeners = new Set<(snapshot: Snapshot) => void>();
   const room = () => client.getRoom(roomId);
@@ -95,6 +99,10 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
       if (current.getMyMembership() !== 'join') throw new Error(`Account ${userId} has not joined room ${roomId} (membership: ${current.getMyMembership() || 'unknown'}). Open this room in Element using that account, join or accept its invitation, then reconnect.`);
       if (current.currentState.getStateEvents('m.room.encryption', '')) throw new Error('Use a dedicated unencrypted test room. This prototype does not open encrypted rooms.');
       const event = current.currentState.getStateEvents(BRIEF_EVENT, STATE_KEY);
+      if (event?.getId() !== lastObservedEventId) {
+        lastPublished = null;
+        lastObservedEventId = event?.getId();
+      }
       snapshot = { ...snapshot, brief: parseBrief(event?.getContent()), canEdit: canEdit(), canSignup: canSignup() && signupHistoryLoaded && !signupHistoryFailed, signups: collectSignups(current), error: undefined };
     } catch (error) { snapshot = { ...snapshot, brief: null, canEdit: false, canSignup: false, error: (error as Error).message }; }
     emit();
@@ -137,10 +145,27 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
     subscribe(listener) { listeners.add(listener); listener(snapshot); return () => { listeners.delete(listener); }; },
     reconnect() { return !closed && client.retryImmediately(); },
     async save(brief) {
-      await publishBrief({ canEdit: () => canEdit() && !snapshot.error, publish: async (type, key, content) => {
-        try { await client.sendStateEvent(roomId, type, content, key); } catch (error) { throw new Error(matrixError(error)); }
-        // The authoritative current state arrives via /sync; never inject a local echo.
-      } }, brief);
+      if (saving) throw new Error('A save is already in progress. Please wait.');
+      saving = true;
+      let warning: string | undefined;
+      try {
+        await publishBrief({ canEdit: () => canEdit() && !snapshot.error, publish: async (type, key, content) => {
+          const before = lastPublished ?? snapshot.brief;
+          const notices = activityAnnouncements(before, content);
+          try { await client.sendStateEvent(roomId, type, content, key); } catch (error) { throw new Error(matrixError(error)); }
+          // Track accepted saves for diffing without injecting an optimistic UI state.
+          lastPublished = content;
+          for (const notice of notices) {
+            try {
+              if (!canSignup()) throw new Error('Message sending is unavailable.');
+              await client.sendEvent(roomId, EventType.RoomMessage, notice);
+            } catch {
+              warning = 'The brief was saved, but one or more room announcements could not be confirmed. Check Element before posting a notice manually.';
+            }
+          }
+        } }, brief);
+        if (warning) return { warning };
+      } finally { saving = false; }
     },
     async setSignup(activityId, signedUp) {
       if (!canSignup()) throw new Error('Your room permissions do not allow signing up.');
@@ -154,8 +179,7 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
       if (signedUp && activity.maxParticipants !== null && activeUsers.length >= activity.maxParticipants) throw new Error('This activity has reached its sign-up limit.');
       try {
         await client.sendEvent(roomId, EventType.RoomMessage, {
-          msgtype: 'm.notice',
-          body: signedUp ? `${userId} signed up for ${activity.title}.` : `${userId} withdrew from ${activity.title}.`,
+          ...activityNotice(activity, signedUp ? `${userId} signed up for` : `${userId} withdrew from`),
           [SIGNUP_CONTENT_KEY]: { activityId, signedUp },
         } as never);
       } catch (error) { throw new Error(matrixError(error)); }

@@ -87,6 +87,38 @@ The saved manual token is not encrypted in local storage and is accessible to sc
 
 ## Manual integration checklist
 
+### Room announcements
+
+Each activity editor has a **Room announcements** setting: **Off**, **Creation
+and deletion only**, or **All changes** (the default, including older activities).
+The preference is stored with the activity and can be changed by organisers with
+brief-edit permission. Deletion uses the activity's last saved preference.
+Settings-only changes and unchanged saves do not post notices.
+
+After an accepted activity change, this app posts an `m.notice` in the same room.
+Activity titles in these notices and sign-up/withdrawal messages link to the
+published brief site and expand that activity after the viewer connects to the
+appropriate room. Removed activities no longer have a card; their links still
+open the brief. Links contain no credentials. The deployment URL is configured
+in `src/matrix/announcements.ts`; update it if moving the site.
+
+Sign-up messages remain visible because they record participation, independently
+of the organiser's activity-change setting. Notices do not request mentions or
+room-wide pings; actual notifications depend on the viewer's Matrix client.
+The existing Announcement text field remains content inside the activity card.
+
+State saves and announcement sends are separate Matrix requests. If the save
+succeeds but a notice cannot be confirmed, the UI reports that partial success
+without asking you to save again. Check Element before posting a notice manually.
+Announcements are best-effort: closing the tab after saving can interrupt them;
+concurrent edits still have the whole-document conflict limitations below.
+Only changes saved through this version of the app generate these notices;
+receiving sync events does not repost them. Existing room messages are unchanged.
+
+Verify on the deployed site: create, edit, and delete a test activity; click its
+linked title in Element; repeat with each announcement setting; and sign up and
+withdraw from another account. Automated coverage uses mocked Matrix requests.
+
 First use two accounts on the **same** homeserver:
 
 - [ ] Open the app in two tabs/windows. Connect A and B using their respective tokens and the same room ID.

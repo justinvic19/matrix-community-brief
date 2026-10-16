@@ -99,6 +99,9 @@ export function BriefEditor({ initial, canEdit, changedRemotely, onSave, onCance
       <label>Date and time (your local timezone; optional)<input type="datetime-local" value={toLocalDateTimeInput(draft.scheduledAt)} onChange={e => update('scheduledAt', e.target.value ? new Date(e.target.value).toISOString() : '')} /></label>
       <label htmlFor="meeting-location">Meeting location or address<LocationInput value={draft.location} onChange={value => update('location', value)} disabled={saving || !canEdit} /></label>
       <label>Announcement (optional)<textarea maxLength={2000} value={draft.announcement} onChange={e => update('announcement', e.target.value)} /></label>
+      <label>Room announcements<select value={draft.announcementLevel ?? 'all'} onChange={e => update('announcementLevel', e.target.value)}>
+        <option value="off">Off</option><option value="major">Creation and deletion only</option><option value="all">All changes</option>
+      </select><small>Post a linked notice in the Matrix room after saving. Changing this setting alone does not post a notice. Sign-ups remain visible; no room-wide pings are sent.</small></label>
       <label>Maximum sign-ups (optional)<input type="number" min="1" step="1" value={draft.maxParticipants ?? ''} onChange={e => setDraft({ ...draft, maxParticipants: e.target.value ? Number(e.target.value) : null })} /><small>Leave blank for no limit. This is best-effort: simultaneous sign-ups or restricted room history may affect the count.</small></label>
       <div className="task-heading"><h3>Tasks</h3><button type="button" className="icon-button" aria-label="Add task" title="Add task" onClick={() => setDraft({ ...draft, tasks: [...draft.tasks, { id: crypto.randomUUID(), text: '', completed: false }] })}>+</button></div>
       {draft.tasks.map((task, index) => <div className="task-edit" key={task.id}>

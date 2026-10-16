@@ -5,6 +5,31 @@ import { createRoomStore, normalizeHomeserver, validateRoomId } from './client';
 import { BRIEF_EVENT, SIGNUP_CONTENT_KEY, STATE_KEY, type Snapshot } from './eventStore';
 const userId = '@organiser:example.org';
 const roomId = '!test:example.org';
+it('announces only after accepted saves, avoids duplicate no-op notices, and distinguishes partial failure', async () => {
+  const h = harness(); h.sync();
+  const brief = { ...emptyBrief(), activities: [{ ...emptyActivity('notice'), title: 'Notice test' }] };
+  h.client.sendStateEvent.mockRejectedValueOnce(new Error('offline'));
+  await expect(h.store.save(brief)).rejects.toThrow();
+  expect(h.client.sendEvent).not.toHaveBeenCalled();
+  await h.store.save(brief);
+  expect(h.client.sendEvent).toHaveBeenCalledOnce();
+  expect(h.client.sendEvent.mock.calls[0]?.[2]).toEqual(expect.objectContaining({ formatted_body: expect.stringContaining('>Notice test</a>') }));
+  await h.store.save(brief);
+  expect(h.client.sendEvent).toHaveBeenCalledOnce();
+  h.client.sendEvent.mockRejectedValueOnce(new Error('notice failed'));
+  await expect(h.store.save({ ...brief, activities: [] })).resolves.toEqual({ warning: expect.stringContaining('brief was saved') });
+  h.store.close();
+});
+it('does not announce synced changes and respects message permissions independently of state editing', async () => {
+  const h = harness(); h.sync();
+  const brief = { ...emptyBrief(), activities: [{ ...emptyActivity('notice'), title: 'Notice test' }] };
+  h.put(BRIEF_EVENT, STATE_KEY, brief); h.changed();
+  expect(h.client.sendEvent).not.toHaveBeenCalled();
+  h.put('m.room.power_levels', '', { users: { [userId]: 50 }, state_default: 50, events: { 'm.room.message': 100 } }); h.changed();
+  await expect(h.store.save({ ...brief, activities: [] })).resolves.toEqual({ warning: expect.stringContaining('brief was saved') });
+  expect(h.client.sendEvent).not.toHaveBeenCalled();
+  h.store.close();
+});
 it('accepts opaque v12 and legacy room IDs without modifying them', () => {
   for (const id of ['!abcdefghijklmnopqrstuvwxyz_0123456789-ABCDEFG', '!test:example.org']) expect(() => validateRoomId(id)).not.toThrow();
   for (const id of ['!', 'room-name', '#room:example.org', 'https://app.element.io/#/room/test', '!room with spaces']) expect(() => validateRoomId(id)).toThrow();
