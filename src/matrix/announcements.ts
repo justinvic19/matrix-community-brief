@@ -32,6 +32,14 @@ export function activityNotice(activity: Activity, prefix: string, roomId?: stri
 }
 
 // Settings-only changes and updatedAt changes do not announce an activity update.
+export function activityParent(activity: Activity, roomId: string) {
+  const notice = activityNotice(activity, 'Activity:', roomId);
+  const time = activity.scheduledAt
+    ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }).format(new Date(activity.scheduledAt)) + ' UTC'
+    : 'Time to be confirmed';
+  return { ...notice, body: `${notice.body}\n${time}`, formatted_body: `${notice.formatted_body}<br>${escapeHtml(time)}` };
+}
+
 function activityContent({ announcementLevel: _level, ...activity }: Activity) {
   return JSON.stringify(activity);
 }

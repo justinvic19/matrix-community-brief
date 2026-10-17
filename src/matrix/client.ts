@@ -1,6 +1,6 @@
 import { createClient, ClientEvent, EventStatus, EventTimeline, EventType, MsgType, RoomEvent, RoomStateEvent, SyncState, type MatrixClient, type MatrixEvent, type Room } from 'matrix-js-sdk';
 import { parseBrief } from '../domain/brief';
-import { activityAnnouncements, activityNotice } from './announcements';
+import { activityAnnouncements, activityParent } from './announcements';
 import { createDiscussions, DISCUSSION_EVENT, threadRelation } from './discussions';
 import { BRIEF_EVENT, SIGNUP_CONTENT_KEY, STATE_KEY, matrixError, parseSignupAction, publishBrief, type BriefStore, type Snapshot } from './eventStore';
 export interface Connection {
@@ -153,7 +153,10 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
         await discussions.store.start(current);
       },
       async reply(activityId, body) {
-        if (!snapshot.brief?.activities.some(item => item.id === activityId)) throw new Error('This activity is no longer available.');
+        const activity = snapshot.brief?.activities.find(item => item.id === activityId);
+        if (!activity) throw new Error('This activity is no longer available.');
+        if (!body.trim() || body.trim().length > 4000) throw new Error('Enter a reply between 1 and 4000 characters.');
+        await discussions.store.start(activity);
         await discussions.store.reply(activityId, body);
       },
     },
@@ -176,7 +179,7 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
               if (!canSignup()) throw new Error('Message sending is unavailable.');
               const id = notice['com.example.community_brief.activity'];
               const activity = content.activities.find(item => item.id === id) ?? before?.activities.find(item => item.id === id);
-              if (activity) await discussions.announce(id, notice, activityNotice(activity, 'Activity:', roomId));
+              if (activity) await discussions.announce(id, notice, activityParent(activity, roomId));
             } catch {
               warning = 'The brief was saved, but one or more room announcements could not be confirmed. Check Element before posting a notice manually.';
             }
@@ -195,15 +198,12 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
       if (signedUp && alreadySignedUp) return;
       if (!signedUp && !alreadySignedUp) return;
       if (signedUp && activity.maxParticipants !== null && activeUsers.length >= activity.maxParticipants) throw new Error('This activity has reached its sign-up limit.');
-      if (!discussions.rootId(activityId)) {
-        if (!canEdit()) throw new Error('An organiser must start this activity’s discussion before sign-ups can be posted in its thread.');
-        await discussions.store.start(activity);
-      }
+      await discussions.store.start(activity);
       const rootId = discussions.rootId(activityId)!;
       try {
         await client.sendEvent(roomId, EventType.RoomMessage, {
           msgtype: MsgType.Notice,
-          body: `${userId} ${signedUp ? 'signed up for' : 'withdrew from'} ${activity.title}.`,
+          body: `${userId} ${signedUp ? 'signed up for' : 'withdrew from'} the activity.`,
           'm.mentions': {},
           [SIGNUP_CONTENT_KEY]: { activityId, signedUp },
           'm.relates_to': threadRelation(rootId),

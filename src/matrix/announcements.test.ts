@@ -1,9 +1,13 @@
 import { expect, it } from 'vitest';
 import { emptyActivity, emptyBrief, parseBrief } from '../domain/brief';
-import { activityAnnouncements, activityNotice, BRIEF_SITE_URL } from './announcements';
+import { activityAnnouncements, activityNotice, activityParent, BRIEF_SITE_URL } from './announcements';
 
 const activity = { ...emptyActivity('a/#'), title: '<Meet & greet>' };
 const brief = { ...emptyBrief(), activities: [activity] };
+it('adds a compact UTC schedule to the linked parent, with an unscheduled fallback', () => {
+  expect(activityParent({ ...activity, scheduledAt: '2026-10-24T10:00:00+01:00' }, '!room').body).toContain('24 Oct, 09:00 UTC');
+  expect(activityParent(activity, '!room').body).toContain('Time to be confirmed');
+});
 it('includes the exact room ID in lifecycle and signup links', () => {
   const roomId = '!opaque:example.org';
   const notices = [activityNotice(activity, 'Signed up for', roomId), ...activityAnnouncements(null, brief, roomId), ...activityAnnouncements(brief, emptyBrief(), roomId)];

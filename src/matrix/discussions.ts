@@ -1,6 +1,6 @@
 import { Direction, EventStatus, EventType, MsgType, RelationType, type MatrixClient, type MatrixEvent } from 'matrix-js-sdk';
 import type { Activity } from '../domain/brief';
-import { activityNotice } from './announcements';
+import { activityNotice, activityParent } from './announcements';
 
 export const DISCUSSION_EVENT = 'com.example.community_brief.discussion';
 export interface DiscussionMessage { id: string; sender: string; body: string; timestamp: number }
@@ -50,6 +50,20 @@ export function createDiscussions(client: MatrixClient, roomId: string, canSend:
     const old = states.get(id);
     return { ...(old && old.rootId === rootId ? old : { messages: [], loaded: false, loading: false, more: false }), rootId, canReply: canSend(), canStart: canStart() };
   };
+  async function verifiedRoot(id: string) {
+    const rootId = root(id);
+    if (!rootId) return undefined;
+    // Do not mistake network errors or forbidden history for a deleted parent.
+    const event = await client.fetchRoomEvent(roomId, rootId);
+    if (closed) throw new Error('Connection closed.');
+    if (event.unsigned?.redacted_because || !event.content || Object.keys(event.content).length === 0) {
+      roots.delete(id);
+      states.delete(id);
+      tokens.delete(id);
+      return undefined;
+    }
+    return rootId;
+  }
   const emit = (id: string) => { if (!closed) listeners.get(id)?.forEach(fn => fn(snapshot(id))); };
   const store: DiscussionStore = {
     subscribe(id, fn) { const group = listeners.get(id) ?? new Set(); group.add(fn); listeners.set(id, group); fn(snapshot(id)); return () => { group.delete(fn); }; },
@@ -75,8 +89,7 @@ export function createDiscussions(client: MatrixClient, roomId: string, canSend:
       emit(id);
     },
     async start(activity) {
-      if (root(activity.id)) return;
-      await announce(activity.id, activityNotice(activity, 'Activity:', roomId), undefined, true);
+      await announce(activity.id, activityParent(activity, roomId), undefined, true);
     },
     async reply(id, input) {
       const body = input.trim();
@@ -92,9 +105,9 @@ export function createDiscussions(client: MatrixClient, roomId: string, canSend:
     if (locks.has(id)) throw new Error('A discussion update is already in progress. Please wait.');
     const operation = (async () => {
       if (closed || !canSend()) throw new Error('Cannot send discussion messages right now.');
-      let rootId = root(id);
+      let rootId = await verifiedRoot(id);
       if (!rootId) {
-        if (!canStart()) throw new Error('Organiser permission to save discussion state is required.');
+        if (!canStart()) throw new Error('The activity parent is missing or deleted. An organiser must recreate it before posting.');
         rootId = pendingRoots.get(id);
         if (!rootId) { rootId = (await client.sendEvent(roomId, EventType.RoomMessage, parent)).event_id; pendingRoots.set(id, rootId); }
         await client.sendStateEvent(roomId, DISCUSSION_EVENT, { rootEventId: rootId }, id);

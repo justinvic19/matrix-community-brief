@@ -6,6 +6,24 @@ import { createDiscussions, discussionMessage, DISCUSSION_EVENT, threadRelation,
 
 const activity = { ...emptyActivity('a'), title: 'Meetup' };
 const roomId = '!room:example.org';
+it('recreates a redacted parent before sending the action under its replacement', async () => {
+  const h = harness(true);
+  h.client.fetchRoomEvent.mockResolvedValueOnce({ content: {} });
+  h.client.sendEvent.mockResolvedValueOnce({ event_id: '$new-root' });
+  await h.discussions.announce('a', activityNotice(activity, 'Updated:', roomId));
+  expect(h.client.sendStateEvent).toHaveBeenCalledWith(roomId, DISCUSSION_EVENT, { rootEventId: '$new-root' }, 'a');
+  expect(h.client.sendEvent.mock.calls[1][2]['m.relates_to'].event_id).toBe('$new-root');
+});
+it('does not recreate parents on network failures or without organiser permissions', async () => {
+  const h = harness(true);
+  h.client.fetchRoomEvent.mockRejectedValueOnce(new Error('network unavailable'));
+  await expect(h.discussions.store.start(activity)).rejects.toThrow('network unavailable');
+  expect(h.client.sendEvent).not.toHaveBeenCalled();
+  h.client.fetchRoomEvent.mockResolvedValue({ content: {} });
+  const participant = createDiscussions(h.client as unknown as MatrixClient, roomId, () => true, () => false);
+  await expect(participant.store.start(activity)).rejects.toThrow(/organiser/);
+  expect(h.client.sendEvent).not.toHaveBeenCalled();
+});
 it('filters automated activity and signup notices from the website but retains human discussion', () => {
   const notice = new MatrixEvent({ event_id: '$notice', type: EventType.RoomMessage, content: { ...activityNotice(activity, 'Created:'), 'm.relates_to': threadRelation('$root') } });
   const signup = new MatrixEvent({ event_id: '$signup', type: EventType.RoomMessage, content: { msgtype: 'm.notice', body: 'signed up', 'com.example.community_brief.signup': { activityId: 'a', signedUp: true }, 'm.relates_to': threadRelation('$root') } });
@@ -20,6 +38,7 @@ function harness(existing = false) {
   let stateEvent = existing ? new MatrixEvent({ event_id: '$mapping', content: { rootEventId: '$root' } }) : null;
   let allowed = true;
   const client = {
+    fetchRoomEvent: vi.fn().mockResolvedValue({ content: { body: 'Activity parent' } }),
     getRoom: () => ({ currentState: { getStateEvents: () => stateEvent } }),
     sendEvent: vi.fn().mockResolvedValue({ event_id: '$root' }),
     sendStateEvent: vi.fn().mockImplementation(async () => { stateEvent = new MatrixEvent({ event_id: '$mapping', content: { rootEventId: '$root' } }); return { event_id: '$mapping' }; }),

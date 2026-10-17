@@ -96,6 +96,14 @@ activity and sign-up notices are filtered out, including from its reply count.
 Sign-ups and withdrawals contain no added URL or HTML link.
 
 New enabled activity announcements create a neutral **Activity: [title]** parent.
+New parents include the scheduled day, month and time in UTC (or **Time to be
+confirmed**). Attendance notices say **signed up for the activity** or **withdrew
+from the activity**, without repeating its name.
+Before an app action posts to a thread, its parent is checked for Matrix redaction.
+Organisers can automatically create and save a replacement parent; members without
+discussion-state permission need an organiser to restore it. Network/access errors
+do not cause replacement messages. Existing replies remain in the old thread;
+they cannot be moved to the replacement. Existing undeleted parent text is unchanged.
 Existing per-activity discussion roots are reused to preserve conversations; old
 messages are not rewritten or moved. The former shared community feed is no
 longer used. For an activity without a root (including announcements-off activities),

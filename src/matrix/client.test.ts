@@ -46,7 +46,7 @@ function harness(viewerId = userId, homeserver = 'https://matrix.example.org') {
   put('m.room.power_levels', '', { users: { [viewerId]: 100 }, state_default: 50 });
   const handlers = new Map<string, (...args: any[]) => void>();
   let membership = 'join';
-  const client = { getRoom: () => currentRoom, on: (event: string, fn: (...args: any[]) => void) => handlers.set(event, fn), off: (event: string) => handlers.delete(event), startClient: vi.fn().mockResolvedValue(undefined), retryImmediately: vi.fn(() => true), stopClient: vi.fn(), setAccessToken: vi.fn(), sendStateEvent: vi.fn().mockResolvedValue({ event_id: '$saved' }), sendEvent: vi.fn().mockResolvedValue({ event_id: '$signup' }), scrollback: vi.fn(async () => { if (backwardToken) { timelineEvents.push(new MatrixEvent({ type: EventType.RoomMessage, content: { msgtype: 'm.notice', body: 'older signup', [SIGNUP_CONTENT_KEY]: { activityId: 'history', signedUp: true } }, room_id: roomId, sender: '@historic:matrix.org', event_id: '$historic' })); backwardToken = null; } return currentRoom; }) };
+  const client = { fetchRoomEvent: vi.fn().mockResolvedValue({ content: { body: 'Activity parent' } }), getRoom: () => currentRoom, on: (event: string, fn: (...args: any[]) => void) => handlers.set(event, fn), off: (event: string) => handlers.delete(event), startClient: vi.fn().mockResolvedValue(undefined), retryImmediately: vi.fn(() => true), stopClient: vi.fn(), setAccessToken: vi.fn(), sendStateEvent: vi.fn().mockResolvedValue({ event_id: '$saved' }), sendEvent: vi.fn().mockResolvedValue({ event_id: '$signup' }), scrollback: vi.fn(async () => { if (backwardToken) { timelineEvents.push(new MatrixEvent({ type: EventType.RoomMessage, content: { msgtype: 'm.notice', body: 'older signup', [SIGNUP_CONTENT_KEY]: { activityId: 'history', signedUp: true } }, room_id: roomId, sender: '@historic:matrix.org', event_id: '$historic' })); backwardToken = null; } return currentRoom; }) };
   const store = createRoomStore(client as unknown as MatrixClient, roomId, viewerId, homeserver);
   let snapshot: Snapshot;
   store.subscribe(value => { snapshot = value; });
@@ -88,7 +88,7 @@ it('allows room members to sign up by message and tracks each member’s latest 
   expect(h.snapshot().canEdit).toBe(false);
   expect(h.snapshot().canSignup).toBe(true);
   await h.store.setSignup('clean-up', true);
-  expect(h.client.sendEvent.mock.calls.at(-1)?.[2]).toMatchObject({ body: '@participant:sk.community signed up for Community clean-up.' });
+  expect(h.client.sendEvent.mock.calls.at(-1)?.[2]).toMatchObject({ body: '@participant:sk.community signed up for the activity.' });
   expect(h.client.sendEvent.mock.calls.at(-1)?.[2]).not.toHaveProperty('formatted_body');
   expect(h.client.sendEvent.mock.calls.at(-1)?.[2]['m.relates_to']).toMatchObject({ rel_type: 'm.thread', event_id: '$activity-root' });
   expect(h.client.sendEvent).toHaveBeenCalledWith(roomId, EventType.RoomMessage, expect.objectContaining({ msgtype: 'm.notice', [SIGNUP_CONTENT_KEY]: { activityId: 'clean-up', signedUp: true } }));
