@@ -1,7 +1,7 @@
 import { parseBrief, type Brief } from '../domain/brief';
 import { BRIEF_EVENT, STATE_KEY } from './eventStore';
 
-export interface PublicBrief { brief: Brief | null; name: string; roomId: string; server: string }
+export interface PublicBrief { brief: Brief | null; name: string; roomId: string; server: string; publishedAt?: string }
 export interface PublicTarget { roomId: string; server: string }
 export function publicTarget(href: string): PublicTarget | null {
   const url = new URL(href);

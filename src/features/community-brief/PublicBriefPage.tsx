@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { loadPublicBrief, type PublicBrief, type PublicTarget } from '../../matrix/publicBrief';
+import { type PublicBrief, type PublicTarget } from '../../matrix/publicBrief';
+import { loadPublishedOrPublicBrief } from '../../matrix/publishedBrief';
 
 export function PublicBriefPage({ target, onConnect }: { target: PublicTarget; onConnect: (activityId?: string) => void }) {
   const [data, setData] = useState<PublicBrief | null>(null);
@@ -9,7 +10,7 @@ export function PublicBriefPage({ target, onConnect }: { target: PublicTarget; o
   useEffect(() => {
     const controller = new AbortController();
     setData(null); setError(''); setLoading(true);
-    loadPublicBrief(target, controller.signal).then(value => { if (!controller.signal.aborted) setData(value); })
+    loadPublishedOrPublicBrief(target, controller.signal).then(value => { if (!controller.signal.aborted) setData(value); })
       .catch(cause => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Could not load public activities.'); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
@@ -17,6 +18,7 @@ export function PublicBriefPage({ target, onConnect }: { target: PublicTarget; o
   return <section className="card" aria-label="Public community brief">
     <div className="discussion-toolbar"><h2>{data?.name ?? 'Public activities'}</h2><button className="secondary" disabled={loading} onClick={() => setRevision(value => value + 1)}>Refresh</button></div>
     <p className="muted">Public read-only view. Sign in to join the room, sign up, or participate in discussions. Sign-up counts are available after connecting.</p>
+    {data?.publishedAt && <p className="muted">Published {new Date(data.publishedAt).toLocaleString()}. Changes may take time to appear. Current availability is checked after connecting.</p>}
     {loading && <p role="status">Loading public activities…</p>}
     {error && <p role="alert" className="error">{error}</p>}
     {data && !data.brief?.activities.length && <p>No activities have been published yet.</p>}

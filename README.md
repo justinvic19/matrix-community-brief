@@ -265,3 +265,49 @@ To adapt the workflow, keep authentication, sync lifecycle and room permission h
 
 The most valuable next step is to run the two-account checklist against a real room, then repeat across homeservers and record the results before expanding the feature set.
 
+# Public snapshots on GitHub Pages
+
+The Pages workflow can publish an explicitly approved room's activity brief as
+`public-briefs.json`. This works without Matrix guest accounts and does not require
+making chat history public. The website uses a matching snapshot first, then falls
+back to the existing public/guest preview for rooms not published here.
+
+## Enable publishing (repository owner / organiser)
+
+1. Create a dedicated Matrix account for publishing and join it to the chosen room.
+   It only needs permission to read the brief; do not give it organiser permissions.
+2. In GitHub **Settings → Secrets and variables → Actions**, add the account's
+   access token as the repository **secret** `MATRIX_PUBLISH_TOKEN`. Never put it
+   in source code, a URL, a repository variable, or the public JSON.
+3. Add these repository **variables**:
+   - `PUBLIC_BRIEF_SERVER`: the publishing account's HTTPS homeserver API URL,
+     for example `https://matrix.org`.
+   - `PUBLIC_BRIEF_ROOM_ID`: the exact room ID, beginning with `!`.
+   - `PUBLIC_BRIEF_NAME`: the public display name (optional).
+   - `PUBLIC_BRIEF_ENABLED`: `true`, only after the organiser approves publishing
+     **all current and future activity details and task text** in that room.
+4. Run **Actions → CI and GitHub Pages → Run workflow**. Check that deployment succeeds.
+5. Share `https://justinvic19.github.io/matrix-community-brief/?roomId=ENCODED_ROOM_ID&publicServer=ENCODED_SERVER`.
+   Both values must match the publishing configuration. The organiser's existing
+   public link works when it uses that same server. Visitors authenticate with
+   their own account only when they want to join/sign up; connecting does not
+   automatically sign them up.
+
+The workflow runs on main pushes, manual dispatch, and twice an hour. Scheduled
+runs can be delayed or disabled by GitHub; this is not a real-time feed. The public
+page displays the publication time. Refresh downloads the latest deployed file,
+not fresh Matrix state. Sign-up availability is checked by the authenticated app.
+
+Only allowlisted activity fields are exported. Unknown Matrix fields, account
+tokens, member lists, sign-ups and discussion messages are excluded. The exporter
+reads only the brief state event and never joins rooms automatically. Pull requests
+do not run the exporter or receive its secret. A failed export blocks deployment,
+leaving the last published snapshot visible; check failed workflow notifications.
+
+To stop publishing, set `PUBLIC_BRIEF_ENABLED` to `false` and manually run the
+workflow successfully. It publishes an empty snapshot. Removing the token alone
+does **not** remove an existing publication. Previously downloaded copies cannot
+be recalled. A successful export replaces the whole snapshot, so deleted activities
+disappear on the next successful deployment. This initial version publishes one
+explicitly configured room per repository.
+
