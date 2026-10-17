@@ -41,12 +41,12 @@ function ActivityCard({ activity, updatedAt, canEdit, canSignup, signups, userId
         </span>
       </summary>
       <div className="activity-content">
-      {activity.announcement && <aside className="notice activity-announcement"><strong>Announcement</strong><p className="preserve">{activity.announcement}</p></aside>}
-      {activity.description && <p className="preserve activity-description">{activity.description}</p>}
       <dl className="activity-facts">
         <div><dt>Date and time</dt><dd>{activity.scheduledAt ? new Date(activity.scheduledAt).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }) : 'Not yet set'}{activity.scheduledAt && <small>Shown in your local timezone · {activity.scheduledAt}</small>}</dd></div>
         <div><dt>Meeting location</dt><dd>{activity.location || 'Not yet set'}</dd></div>
       </dl>
+      {activity.announcement && <aside className="notice activity-announcement"><strong>Announcement</strong><p className="preserve">{activity.announcement}</p></aside>}
+      {activity.description && <p className="preserve activity-description">{activity.description}</p>}
       <section className="activity-signups" aria-label={`Sign-ups for ${activity.title}`}>
         <div className="signup-heading"><h3>Sign-ups</h3><strong>{signups.length}{activity.maxParticipants === null ? '' : ` / ${activity.maxParticipants}`}</strong></div>
         {signups.length > 0 ? <ul className="signup-list">{signups.map(participant => <li key={participant}>{participant}</li>)}</ul> : <p>No one has signed up yet.</p>}
