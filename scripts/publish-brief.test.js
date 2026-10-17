@@ -2,7 +2,11 @@ import { expect, it, vi } from 'vitest';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { publicFields, publish } from './publish-brief.mjs';
+import { publicFields, publish, publishingFailureMessage } from './publish-brief.mjs';
+
+it('does not print arbitrary errors containing credentials or server responses', () => {
+  expect(publishingFailureMessage(new Error('private-token'))).not.toContain('private-token');
+});
 
 const brief = { schemaVersion: 3, updatedAt: '2026-10-17T12:00:00Z', token: 'secret', activities: [{
   id: 'a', title: 'Meetup', description: '', scheduledAt: '', location: '', announcement: '',
