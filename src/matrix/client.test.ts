@@ -12,10 +12,10 @@ it('announces only after accepted saves, avoids duplicate no-op notices, and dis
   await expect(h.store.save(brief)).rejects.toThrow();
   expect(h.client.sendEvent).not.toHaveBeenCalled();
   await h.store.save(brief);
-  expect(h.client.sendEvent).toHaveBeenCalledOnce();
-  expect(h.client.sendEvent.mock.calls[0]?.[2]).toEqual(expect.objectContaining({ formatted_body: expect.stringContaining('>Notice test</a>') }));
+  expect(h.client.sendEvent).toHaveBeenCalledTimes(2);
+  expect(h.client.sendEvent.mock.calls[1]?.[2]).toEqual(expect.objectContaining({ formatted_body: expect.stringContaining('>Notice test</a>') }));
   await h.store.save(brief);
-  expect(h.client.sendEvent).toHaveBeenCalledOnce();
+  expect(h.client.sendEvent).toHaveBeenCalledTimes(2);
   h.client.sendEvent.mockRejectedValueOnce(new Error('notice failed'));
   await expect(h.store.save({ ...brief, activities: [] })).resolves.toEqual({ warning: expect.stringContaining('brief was saved') });
   h.store.close();
@@ -87,6 +87,8 @@ it('allows room members to sign up by message and tracks each member’s latest 
   expect(h.snapshot().canEdit).toBe(false);
   expect(h.snapshot().canSignup).toBe(true);
   await h.store.setSignup('clean-up', true);
+  expect(h.client.sendEvent.mock.calls.at(-1)?.[2]).toMatchObject({ body: '@participant:sk.community signed up for Community clean-up.' });
+  expect(h.client.sendEvent.mock.calls.at(-1)?.[2]).not.toHaveProperty('formatted_body');
   expect(h.client.sendEvent).toHaveBeenCalledWith(roomId, EventType.RoomMessage, expect.objectContaining({ msgtype: 'm.notice', [SIGNUP_CONTENT_KEY]: { activityId: 'clean-up', signedUp: true } }));
   h.message('@participant:sk.community', 'clean-up', true);
   h.message('@other:matrix.org', 'clean-up', true);

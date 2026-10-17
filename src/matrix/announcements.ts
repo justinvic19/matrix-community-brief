@@ -4,6 +4,18 @@ import { MsgType } from 'matrix-js-sdk';
 export const BRIEF_SITE_URL = 'https://justinvic19.github.io/matrix-community-brief/';
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
 
+export function communityNotice(roomId: string) {
+  const url = new URL(BRIEF_SITE_URL);
+  url.searchParams.set('roomId', roomId);
+  return {
+    msgtype: MsgType.Notice as const,
+    body: `Community activities — Open the brief: ${url.href}`,
+    format: 'org.matrix.custom.html' as const,
+    formatted_body: `Community activities — <a href="${escapeHtml(url.href)}">Open the brief</a>`,
+    'm.mentions': {},
+  };
+}
+
 export function activityNotice(activity: Activity, prefix: string, roomId?: string) {
   const target = new URL(BRIEF_SITE_URL);
   if (roomId) target.searchParams.set('roomId', roomId);

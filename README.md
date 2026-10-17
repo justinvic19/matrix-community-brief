@@ -89,9 +89,17 @@ The saved manual token is not encrypted in local storage and is accessible to sc
 
 ### Room announcements
 
-Each activity now has a collapsible **Discussion** section. New automatic
-announcements become thread roots; later update and removal notices are sent as
-`m.thread` replies to the same announcement. Sign-ups stay separate. **Discuss in
+Activity creation, update and removal notices share one **Community activities —
+Open the brief** room message and its thread. The linked root is created on the
+first enabled announcement and stored in `com.example.community_brief.announcement_feed`
+with state key `main`. Existing announcements are not moved or deleted. Creating
+the shared root requires permission to send this state event. As with discussion
+roots, concurrent organisers can create competing roots before state sync resolves.
+
+Each activity retains its own collapsible **Discussion** section and separate
+thread. Organisers use **Start discussion** for new activities; existing mapped
+discussion threads remain intact. Sign-ups and withdrawals stay separate as
+plain-text notices without an added URL or HTML link. **Discuss in
 Element** opens the root message, where participants can open its thread.
 
 Expand Discussion to load the latest 30 replies. **Load older replies** paginates
@@ -126,7 +134,7 @@ brief-edit permission. Deletion uses the activity's last saved preference.
 Settings-only changes and unchanged saves do not post notices.
 
 After an accepted activity change, this app posts an `m.notice` in the same room.
-Activity titles in these notices and sign-up/withdrawal messages link to the
+Activity titles in lifecycle notices link to the
 published brief site and expand that activity after the viewer connects to the
 appropriate room. New links include a `roomId` query parameter that prefills the
 connection form, overriding only the saved room selection. They never choose a
