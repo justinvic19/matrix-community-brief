@@ -89,6 +89,36 @@ The saved manual token is not encrypted in local storage and is accessible to sc
 
 ### Room announcements
 
+Each activity now has a collapsible **Discussion** section. New automatic
+announcements become thread roots; later update and removal notices are sent as
+`m.thread` replies to the same announcement. Sign-ups stay separate. **Discuss in
+Element** opens the root message, where participants can open its thread.
+
+Expand Discussion to load the latest 30 replies. **Load older replies** paginates
+the thread; **Refresh discussion** retries loading or checks for missed updates.
+Loaded discussions receive live replies, edits and redactions. The website shows
+plain text, not Matrix HTML; use Element for rich media, reactions, and moderation.
+Room members with message permission can reply without brief-edit permission.
+Failed replies keep their draft, and offline reply submission is disabled.
+
+For old activities or activities with automatic announcements off, an organiser
+can choose **Start discussion**. This explicitly posts a root notice even when
+automatic announcements are off. Existing historical announcements are not
+automatically adopted. Root IDs are stored in the separate room state event
+`com.example.community_brief.discussion`, keyed by activity ID. Creating a root
+requires both brief-edit permission and permission to send that state event;
+normal reply sending only requires room-message permission. Roots survive reloads
+and activity deletion, so past conversations remain accessible in Element.
+
+Root creation and saving its state mapping are separate requests. If the mapping
+fails, retrying in the same session reuses the accepted root. Closing the tab
+before recovery can leave an unlinked notice. Simultaneous organisers starting
+the same discussion can create competing roots; Matrix resolves the state mapping.
+The displayed history is limited to what the viewer's homeserver allows them to
+read. Check with two real accounts after deployment: create an activity, reply
+from Element and the website, reload, page through replies, update/remove the
+activity, and test announcement-off and read-only organiser permissions.
+
 Each activity editor has a **Room announcements** setting: **Off**, **Creation
 and deletion only**, or **All changes** (the default, including older activities).
 The preference is stored with the activity and can be changed by organisers with

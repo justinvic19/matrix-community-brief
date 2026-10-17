@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { emptyActivity, emptyBrief, type Activity, type Brief } from '../../domain/brief';
 import type { BriefStore, Snapshot } from '../../matrix/eventStore';
 import { BriefEditor } from './BriefEditor';
+import { Discussion } from './Discussion';
 import { buildElementRoomUrl, defaultElementWebUrl } from '../../matrix/roomLink';
 
 function SummaryIcon({ kind }: { kind: 'date' | 'location' | 'people' }) {
@@ -12,7 +13,7 @@ function SummaryIcon({ kind }: { kind: 'date' | 'location' | 'people' }) {
   </svg>;
 }
 
-function ActivityCard({ activity, updatedAt, canEdit, canSignup, signups, userId, onSignup, onEdit, onRemove }: { activity: Activity; updatedAt: string; canEdit: boolean; canSignup: boolean; signups: string[]; userId: string; onSignup: (signedUp: boolean) => Promise<void>; onEdit: () => void; onRemove: () => void }) {
+function ActivityCard({ activity, updatedAt, canEdit, canSignup, signups, userId, onSignup, onEdit, onRemove, children }: { children?: ReactNode; activity: Activity; updatedAt: string; canEdit: boolean; canSignup: boolean; signups: string[]; userId: string; onSignup: (signedUp: boolean) => Promise<void>; onEdit: () => void; onRemove: () => void }) {
   const completedCount = activity.tasks.filter(task => task.completed).length;
   const signedUp = signups.includes(userId);
   const detailsRef = useRef<HTMLDetailsElement>(null);
@@ -67,6 +68,7 @@ function ActivityCard({ activity, updatedAt, canEdit, canSignup, signups, userId
         {!signedUp && canSignup && <SignupButton signedUp={false} full={activity.maxParticipants !== null && signups.length >= activity.maxParticipants} onSignup={onSignup} />}
       </div>
     </div>
+    {children}
   </article>;
 }
 
@@ -135,7 +137,7 @@ export function BriefPage({ store, roomId, elementWebUrl = defaultElementWebUrl(
     {editing ? <BriefEditor initial={editing.activity} canEdit={state.canEdit} changedRemotely={editing.baseline !== JSON.stringify(brief)} onCancel={() => setEditing(null)} onSave={saveActivity} /> : <>
       {brief ? <>
         <div className="activity-list-heading"><h2>Activities</h2>{state.canEdit && <button type="button" className="icon-button" aria-label="Add activity" title="Add activity" onClick={() => startEditing()}>+</button>}</div>
-        {brief.activities.map(activity => <ActivityCard key={activity.id} activity={activity} updatedAt={brief.updatedAt} canEdit={state.canEdit} canSignup={!!state.canSignup} signups={state.signups?.[activity.id] ?? []} userId={store.identity.userId} onSignup={signedUp => setActivitySignup(activity.id, signedUp)} onEdit={() => startEditing(activity)} onRemove={() => void removeActivity(activity.id)} />)}
+        {brief.activities.map(activity => <ActivityCard key={activity.id} activity={activity} updatedAt={brief.updatedAt} canEdit={state.canEdit} canSignup={!!state.canSignup} signups={state.signups?.[activity.id] ?? []} userId={store.identity.userId} onSignup={signedUp => setActivitySignup(activity.id, signedUp)} onEdit={() => startEditing(activity)} onRemove={() => void removeActivity(activity.id)}>{store.discussions && <Discussion activity={activity} store={store.discussions} roomId={roomId} userId={store.identity.userId} elementWebUrl={elementWebUrl} />}</ActivityCard>)}
         {brief.activities.length === 0 && <p>No activities have been added to this room yet.</p>}
         {brief.activities.length > 0 && <p className="muted">Last updated: {new Date(brief.updatedAt).toLocaleString()}</p>}
       </> : state.status === 'live' && !state.error ? <><h2>A shared place for the current plan</h2><p>No brief has been published in this room yet.</p>{state.canEdit && <button type="button" className="icon-button" aria-label="Add activity" title="Add activity" onClick={() => startEditing()}>+</button>}</> : null}

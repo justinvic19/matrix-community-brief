@@ -35,3 +35,8 @@ export function buildElementRoomUrl(webUrl: string, roomId: string, userId: stri
   const query = new URLSearchParams({ via: matrixServerName(userId) });
   return `${normalizeElementWebUrl(webUrl)}#/room/${encodeURIComponent(roomId)}?${query}`;
 }
+
+export function buildElementDiscussionUrl(webUrl: string, roomId: string, userId: string, rootId: string): string {
+  const query = new URLSearchParams({ via: matrixServerName(userId) });
+  return `${normalizeElementWebUrl(webUrl)}#/room/${encodeURIComponent(roomId)}/${encodeURIComponent(rootId)}?${query}`;
+}

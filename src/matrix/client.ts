@@ -1,6 +1,7 @@
 import { createClient, ClientEvent, EventStatus, EventTimeline, EventType, RoomEvent, RoomStateEvent, SyncState, type MatrixClient, type MatrixEvent, type Room } from 'matrix-js-sdk';
 import { parseBrief } from '../domain/brief';
 import { activityAnnouncements, activityNotice } from './announcements';
+import { createDiscussions, DISCUSSION_EVENT } from './discussions';
 import { BRIEF_EVENT, SIGNUP_CONTENT_KEY, STATE_KEY, matrixError, parseSignupAction, publishBrief, type BriefStore, type Snapshot } from './eventStore';
 export interface Connection {
   homeserver: string;
@@ -84,7 +85,8 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
     for (const [activityId, activitySignups] of latest) signups[activityId] = [...activitySignups].filter(([, signedUp]) => signedUp).map(([user]) => user);
     return signups;
   };
-  const emit = () => listeners.forEach(listener => listener(snapshot));
+  const discussions = createDiscussions(client, roomId, canSignup, () => canEdit() && !!room()?.currentState.maySendStateEvent(DISCUSSION_EVENT, userId));
+  const emit = () => { listeners.forEach(listener => listener(snapshot)); discussions.refresh(); };
   const refresh = () => {
     if (closed || !prepared) return;
     const current = room();
@@ -112,7 +114,9 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
   let signupHistoryLoaded = false;
   let signupHistoryFailed = false;
   const onTimeline = (event: MatrixEvent, eventRoom?: Room) => {
-    if (closed || eventRoom?.roomId !== roomId || loadingSignupHistory || !parseSignupAction(event.getContent()[SIGNUP_CONTENT_KEY])) return;
+    if (closed || eventRoom?.roomId !== roomId) return;
+    discussions.timeline(event);
+    if (loadingSignupHistory || !parseSignupAction(event.getContent()[SIGNUP_CONTENT_KEY])) return;
     refresh();
   };
   const loadSignupHistory = async () => {
@@ -141,6 +145,18 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
   client.on(RoomEvent.Timeline, onTimeline);
   void client.startClient({ initialSyncLimit: 0 }).catch(() => { if (!closed) { snapshot = { ...snapshot, status: 'offline', error: 'Could not start sync. Disconnect and try again.' }; emit(); } });
   return {
+    discussions: {
+      ...discussions.store,
+      async start(activity) {
+        const current = snapshot.brief?.activities.find(item => item.id === activity.id);
+        if (!current) throw new Error('This activity is no longer available.');
+        await discussions.store.start(current);
+      },
+      async reply(activityId, body) {
+        if (!snapshot.brief?.activities.some(item => item.id === activityId)) throw new Error('This activity is no longer available.');
+        await discussions.store.reply(activityId, body);
+      },
+    },
     identity: { userId, homeserver },
     subscribe(listener) { listeners.add(listener); listener(snapshot); return () => { listeners.delete(listener); }; },
     reconnect() { return !closed && client.retryImmediately(); },
@@ -158,7 +174,7 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
           for (const notice of notices) {
             try {
               if (!canSignup()) throw new Error('Message sending is unavailable.');
-              await client.sendEvent(roomId, EventType.RoomMessage, notice);
+              await discussions.announce(notice['com.example.community_brief.activity'], notice);
             } catch {
               warning = 'The brief was saved, but one or more room announcements could not be confirmed. Check Element before posting a notice manually.';
             }
@@ -184,6 +200,6 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
         } as never);
       } catch (error) { throw new Error(matrixError(error)); }
     },
-    close() { closed = true; client.off(ClientEvent.Sync, onSync); client.off(RoomStateEvent.Events, onState); client.off(RoomEvent.Timeline, onTimeline); client.stopClient(); client.setAccessToken(''); listeners.clear(); },
+    close() { closed = true; discussions.close(); client.off(ClientEvent.Sync, onSync); client.off(RoomStateEvent.Events, onState); client.off(RoomEvent.Timeline, onTimeline); client.stopClient(); client.setAccessToken(''); listeners.clear(); },
   };
 }

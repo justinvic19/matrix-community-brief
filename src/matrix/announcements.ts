@@ -15,6 +15,7 @@ export function activityNotice(activity: Activity, prefix: string, roomId?: stri
     format: 'org.matrix.custom.html' as const,
     formatted_body: `${escapeHtml(prefix)} <a href="${escapeHtml(url)}">${escapeHtml(activity.title)}</a>.`,
     'm.mentions': {},
+    'com.example.community_brief.activity': activity.id,
   };
 }
 
