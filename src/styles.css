@@ -57,4 +57,4 @@ main{max-width:1120px}
 .icon-button:hover{background:#1e4c3d;border-color:#1e4c3d}
 .summary-icon{width:16px;height:16px;flex:none;color:currentColor;vertical-align:middle}
 .activity-summary-fact{align-items:center}
-.account-connection-fields{display:grid;grid-template-columns:1fr 1fr;gap:20px}.account-connection-fields label{min-width:0}@media(max-width:640px){.account-connection-fields{grid-template-columns:1fr;gap:0}}
+.manual-connection{margin-top:24px;padding-top:16px;border-top:1px solid #d4ded7}.manual-connection h3{margin:0 0 12px}.manual-connection-fields{display:flex;align-items:flex-end;gap:12px}.manual-connection-fields label{flex:1;min-width:0;margin:0}.manual-connection-fields button{flex-shrink:0}@media(max-width:640px){.manual-connection-fields{flex-direction:column;align-items:stretch}}

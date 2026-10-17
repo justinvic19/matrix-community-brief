@@ -142,11 +142,8 @@ export default function App() {
         <label>Room ID<input name="roomId" placeholder="!room:example.org" value={connection.roomId} onChange={e => changeConnection('roomId', e.target.value)} required /></label>
         <h3>Your Matrix account</h3>
         <p className="muted" id="homeserver-help">Use your account's homeserver API URL, not the room creator's server or the Element website. Your access token must belong to this server. Changing server clears the manual token.</p>
-        <div className="account-connection-fields">
           <label>Homeserver URL<input name="homeserver" type="url" placeholder="https://matrix.org" value={connection.homeserver} onChange={e => changeConnection('homeserver', e.target.value)} aria-describedby="homeserver-help" required /></label>
-          <label>Matrix access token (manual option)<input name="token" type="password" autoComplete="off" value={connection.token} onChange={e => changeConnection('token', e.target.value)} /></label>
-        </div>
-        <p className="muted">Sign in with Matrix if your homeserver supports device-code sign-in, or paste a token above and choose Connect.</p>
+        <p className="muted">Sign in through your homeserver. No pasted token needed.</p>
         {oauthSession && oauthSession.homeserver === (() => { try { return normalizeHomeserver(connection.homeserver); } catch { return ''; } })() && <button type="button" onClick={() => void connectWithSavedSession()}>{busy ? 'Connecting…' : `Continue as ${oauthSession.userId}`}</button>}
         <button type="button" onClick={() => void startMatrixSignIn()}>{busy ? 'Signing in…' : oauthSession ? 'Sign in with a different account' : 'Sign in with Matrix'}</button>
         {loginPrompt && <div className="notice" role="status">
@@ -154,7 +151,13 @@ export default function App() {
           <p><a href={loginPrompt.verificationUriComplete || loginPrompt.verificationUri} target="_blank" rel="noopener noreferrer">Open the homeserver sign-in page</a></p>
           <p>Enter this one-time code: <strong className="device-code">{loginPrompt.userCode}</strong></p>
         </div>}
-        <button type="submit">{busy ? 'Connecting…' : 'Connect'}</button>
+        <section className="manual-connection" aria-label="Connect with an access token">
+          <h3>Or use an access token</h3>
+          <div className="manual-connection-fields">
+            <label>Matrix access token (manual option)<input name="token" type="password" autoComplete="off" value={connection.token} onChange={e => changeConnection('token', e.target.value)} /></label>
+            <button type="submit">{busy ? 'Connecting…' : 'Connect with access token'}</button>
+          </div>
+        </section>
         <details className="element-settings"><summary>Element room links</summary>
           <label>Element Web URL (optional)<input name="elementWebUrl" type="url" placeholder={defaultElementWebUrl(connection.homeserver)} value={connection.elementWebUrl ?? ''} onChange={e => changeConnection('elementWebUrl', e.target.value)} aria-describedby="element-web-help" /></label>
           <p id="element-web-help" className="muted">Use the address of the Element website where you are signed in. Leave blank to use {defaultElementWebUrl(connection.homeserver)}. Changing homeserver resets this preference.</p>
