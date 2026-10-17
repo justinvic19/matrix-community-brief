@@ -78,7 +78,8 @@ it('keeps the activity compact and lets viewers expand its details', async () =>
   expect(details.open).toBe(true);
   const activityContent = details.querySelector('.activity-content')!;
   expect(activityContent.querySelector('.activity-announcement strong')?.textContent).toBe('Announcement');
-  expect(activityContent.firstElementChild?.classList.contains('activity-announcement')).toBe(true);
+  expect(activityContent.firstElementChild?.classList.contains('activity-facts')).toBe(true);
+  expect(activityContent.firstElementChild?.nextElementSibling?.classList.contains('activity-announcement')).toBe(true);
   expect(screen.getByRole('heading', { name: 'Tasks' })).toBeTruthy();
   expect(screen.getByText('Bring spare gloves')).toBeTruthy();
   expect(screen.getByText('Bring gloves')).toBeTruthy();
