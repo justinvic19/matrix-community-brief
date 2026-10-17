@@ -31,6 +31,8 @@ jobs:
         run: npm ci
       - name: Run tests
         run: npm test
+      - name: Typecheck Chat Hackers module
+        run: npm run module:typecheck
       - name: Typecheck and build
         run: npm run build
       - name: Export approved public brief

@@ -4,3 +4,5 @@ dist/
 !.env.example
 coverage/
 *.log
+.chat-hackers-data/
+/living-community-brief.json

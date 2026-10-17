@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "types": ["node"], "lib": ["ES2022", "DOM"] },
+  "include": ["./**/*.ts", "../../src/domain/brief.ts", "../../src/matrix/eventStore.ts", "../../src/matrix/custom-events.d.ts"]
+}
