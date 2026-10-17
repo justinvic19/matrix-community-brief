@@ -79,12 +79,20 @@ not fresh Matrix state. Sign-up availability is checked by the authenticated app
 Only allowlisted activity fields are exported. Unknown Matrix fields, account
 tokens, member lists, sign-ups and discussion messages are excluded. The exporter
 reads only the brief state event and never joins rooms automatically. Pull requests
-do not run the exporter or receive its secret. A failed export blocks deployment,
-leaving the last published snapshot visible; check failed workflow notifications.
+do not run the exporter or receive its secret. Snapshot export is optional: an export
+failure (including an expired or missing token) produces an Actions warning and
+summary, while tests, builds and deployment still run normally. Test and build
+failures continue to block deployment.
+
+Each deployment replaces the site; a failed export does not carry forward the old
+snapshot. Public links then try the homeserver's public/guest preview, which may
+not be available for the room. Signed-in users can still read the live brief.
+Replace `MATRIX_PUBLISH_TOKEN` and rerun the workflow to restore snapshot publishing.
+This does not renew tokens automatically or guarantee anonymous access.
 
 To stop publishing, set `PUBLIC_BRIEF_ENABLED` to `false` and manually run the
 workflow successfully. It publishes an empty snapshot. Removing the token alone
-does **not** remove an existing publication. Previously downloaded copies cannot
+removes the snapshot on the next successful deployment when the export fails. Previously downloaded copies cannot
 be recalled. A successful export replaces the whole snapshot, so deleted activities
 disappear on the next successful deployment. This initial version publishes one
 explicitly configured room per repository.

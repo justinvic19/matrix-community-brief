@@ -73,7 +73,7 @@ Keep the module and tunnel running. **`npm run dev` starts the website; `npm run
 
 ## Live and public viewing
 
-The signed-in website receives live Matrix updates. Public viewing prefers a deployed `public-briefs.json` snapshot exported by GitHub Actions, so newly created activities can appear later. A failed export leaves the previous snapshot online; refreshing the page alone cannot republish it.
+The signed-in website receives live Matrix updates. Public viewing prefers a deployed `public-briefs.json` snapshot exported by GitHub Actions, so newly created activities can appear later. Snapshot export is optional: a missing or expired publishing token does not block website deployment. If export fails, the new deployment has no snapshot and public viewing falls back to homeserver guest access, which may be unavailable. The previous snapshot is not carried forward; signed-in viewing is unaffected.
 
 The local tool uses `CH_MATRIX_TOKEN`; the GitHub exporter uses a separate `MATRIX_PUBLISH_TOKEN`. These fixed tokens do not currently renew automatically. See [deployment and public publishing](docs/deployment.md) for setup and expired-token troubleshooting.
 

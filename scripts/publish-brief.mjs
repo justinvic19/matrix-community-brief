@@ -49,5 +49,5 @@ export async function publish(env = process.env, fetcher = fetch, output = 'dist
 }
 
 if (process.argv[1]?.endsWith('publish-brief.mjs')) {
-  publish().catch(error => { console.error(`Public brief export failed: ${publishingFailureMessage(error)} No new deployment was published.`); process.exitCode = 1; });
+  publish().catch(error => { console.error(`Public brief export failed: ${publishingFailureMessage(error)} No public snapshot was generated.`); process.exitCode = 1; });
 }
