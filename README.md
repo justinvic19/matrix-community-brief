@@ -89,17 +89,18 @@ The saved manual token is not encrypted in local storage and is accessible to sc
 
 ### Room announcements
 
-Activity creation, update and removal notices share one **Community activities —
-Open the brief** room message and its thread. The linked root is created on the
-first enabled announcement and stored in `com.example.community_brief.announcement_feed`
-with state key `main`. Existing announcements are not moved or deleted. Creating
-the shared root requires permission to send this state event. As with discussion
-roots, concurrent organisers can create competing roots before state sync resolves.
+Each activity has one linked parent room message, with creation, update, removal,
+sign-up, withdrawal, and human discussion messages all sent as thread replies.
+The website's collapsible **Discussion** shows only human discussion: structured
+activity and sign-up notices are filtered out, including from its reply count.
+Sign-ups and withdrawals contain no added URL or HTML link.
 
-Each activity retains its own collapsible **Discussion** section and separate
-thread. Organisers use **Start discussion** for new activities; existing mapped
-discussion threads remain intact. Sign-ups and withdrawals stay separate as
-plain-text notices without an added URL or HTML link. **Discuss in
+New enabled activity announcements create a neutral **Activity: [title]** parent.
+Existing per-activity discussion roots are reused to preserve conversations; old
+messages are not rewritten or moved. The former shared community feed is no
+longer used. For an activity without a root (including announcements-off activities),
+an organiser must use **Start discussion** before ordinary members can sign up.
+An organiser's own sign-up can create the missing root. **Discuss in
 Element** opens the root message, where participants can open its thread.
 
 Expand Discussion to load the latest 30 replies. **Load older replies** paginates

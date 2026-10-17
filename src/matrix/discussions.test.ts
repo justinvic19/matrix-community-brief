@@ -2,10 +2,17 @@ import { EventType, MatrixEvent, type MatrixClient } from 'matrix-js-sdk';
 import { expect, it, vi } from 'vitest';
 import { emptyActivity } from '../domain/brief';
 import { activityNotice } from './announcements';
-import { createDiscussions, DISCUSSION_EVENT, threadRelation, type DiscussionSnapshot } from './discussions';
+import { createDiscussions, discussionMessage, DISCUSSION_EVENT, threadRelation, type DiscussionSnapshot } from './discussions';
 
 const activity = { ...emptyActivity('a'), title: 'Meetup' };
 const roomId = '!room:example.org';
+it('filters automated activity and signup notices from the website but retains human discussion', () => {
+  const notice = new MatrixEvent({ event_id: '$notice', type: EventType.RoomMessage, content: { ...activityNotice(activity, 'Created:'), 'm.relates_to': threadRelation('$root') } });
+  const signup = new MatrixEvent({ event_id: '$signup', type: EventType.RoomMessage, content: { msgtype: 'm.notice', body: 'signed up', 'com.example.community_brief.signup': { activityId: 'a', signedUp: true }, 'm.relates_to': threadRelation('$root') } });
+  expect(discussionMessage(notice, '$root')).toBeNull();
+  expect(discussionMessage(signup, '$root')).toBeNull();
+  expect(discussionMessage(message('$human', 'Hello'), '$root')?.body).toBe('Hello');
+});
 function message(id: string, body = id, timestamp = 1) {
   return new MatrixEvent({ event_id: id, room_id: roomId, type: EventType.RoomMessage, sender: '@member:example.org', origin_server_ts: timestamp, content: { msgtype: 'm.text', body, 'm.relates_to': threadRelation('$root') } });
 }

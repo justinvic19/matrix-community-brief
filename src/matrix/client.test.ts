@@ -83,12 +83,14 @@ it('allows room members to sign up by message and tracks each member’s latest 
   const h = harness('@participant:sk.community', 'https://matrix.sk.community'); h.sync();
   h.put('m.room.power_levels', '', { users: { '@participant:sk.community': 0 }, state_default: 50 }); h.changed();
   const activity = { ...emptyActivity('clean-up'), title: 'Community clean-up', maxParticipants: 2 };
+  h.put('com.example.community_brief.discussion', 'clean-up', { rootEventId: '$activity-root' });
   h.put(BRIEF_EVENT, STATE_KEY, { ...emptyBrief(), activities: [activity] }); h.changed();
   expect(h.snapshot().canEdit).toBe(false);
   expect(h.snapshot().canSignup).toBe(true);
   await h.store.setSignup('clean-up', true);
   expect(h.client.sendEvent.mock.calls.at(-1)?.[2]).toMatchObject({ body: '@participant:sk.community signed up for Community clean-up.' });
   expect(h.client.sendEvent.mock.calls.at(-1)?.[2]).not.toHaveProperty('formatted_body');
+  expect(h.client.sendEvent.mock.calls.at(-1)?.[2]['m.relates_to']).toMatchObject({ rel_type: 'm.thread', event_id: '$activity-root' });
   expect(h.client.sendEvent).toHaveBeenCalledWith(roomId, EventType.RoomMessage, expect.objectContaining({ msgtype: 'm.notice', [SIGNUP_CONTENT_KEY]: { activityId: 'clean-up', signedUp: true } }));
   h.message('@participant:sk.community', 'clean-up', true);
   h.message('@other:matrix.org', 'clean-up', true);

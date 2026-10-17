@@ -15,6 +15,7 @@ export const threadRelation = (rootId: string) => ({ rel_type: RelationType.Thre
 
 export function discussionMessage(event: MatrixEvent, rootId: string): DiscussionMessage | null {
   const content = event.getContent();
+  if (content['com.example.community_brief.activity'] || content['com.example.community_brief.signup']) return null;
   if (event.isRedacted() || event.getType() !== EventType.RoomMessage || content['m.relates_to']?.rel_type !== RelationType.Thread || content['m.relates_to']?.event_id !== rootId || !event.getId()) return null;
   const replacement = event.getUnsigned()['m.relations']?.['m.replace'];
   const edited = replacement?.sender === event.getSender() ? replacement?.content?.['m.new_content'] : undefined;
@@ -75,7 +76,7 @@ export function createDiscussions(client: MatrixClient, roomId: string, canSend:
     },
     async start(activity) {
       if (root(activity.id)) return;
-      await announce(activity.id, activityNotice(activity, 'Discuss activity:', roomId));
+      await announce(activity.id, activityNotice(activity, 'Activity:', roomId), undefined, true);
     },
     async reply(id, input) {
       const body = input.trim();
@@ -87,20 +88,19 @@ export function createDiscussions(client: MatrixClient, roomId: string, canSend:
       await store.load(id);
     },
   };
-  async function announce(id: string, notice: ReturnType<typeof activityNotice>) {
+  async function announce(id: string, notice: ReturnType<typeof activityNotice>, parent = notice, rootOnly = false) {
     if (locks.has(id)) throw new Error('A discussion update is already in progress. Please wait.');
     const operation = (async () => {
       if (closed || !canSend()) throw new Error('Cannot send discussion messages right now.');
       let rootId = root(id);
-      if (rootId) {
-        await client.sendEvent(roomId, EventType.RoomMessage, { ...notice, 'm.relates_to': threadRelation(rootId) });
-      } else {
+      if (!rootId) {
         if (!canStart()) throw new Error('Organiser permission to save discussion state is required.');
         rootId = pendingRoots.get(id);
-        if (!rootId) { rootId = (await client.sendEvent(roomId, EventType.RoomMessage, notice)).event_id; pendingRoots.set(id, rootId); }
+        if (!rootId) { rootId = (await client.sendEvent(roomId, EventType.RoomMessage, parent)).event_id; pendingRoots.set(id, rootId); }
         await client.sendStateEvent(roomId, DISCUSSION_EVENT, { rootEventId: rootId }, id);
         roots.set(id, rootId); pendingRoots.delete(id);
       }
+      if (!rootOnly) await client.sendEvent(roomId, EventType.RoomMessage, { ...notice, 'm.relates_to': threadRelation(rootId) });
       emit(id);
     })();
     locks.set(id, operation);
@@ -108,6 +108,7 @@ export function createDiscussions(client: MatrixClient, roomId: string, canSend:
   }
   return {
     store, announce,
+    rootId: root,
     refresh() { for (const id of listeners.keys()) emit(id); },
     timeline(event: MatrixEvent) {
       if (event.getAssociatedStatus() && event.getAssociatedStatus() !== EventStatus.SENT) return;
