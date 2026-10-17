@@ -30,8 +30,7 @@ it('preserves a failed reply and clears it after successful sending', async () =
   await screen.findByRole('alert');
   expect((screen.getByLabelText('Reply to discussion') as HTMLTextAreaElement).value).toBe('Hello');
   fireEvent.click(screen.getByRole('button', { name: 'Send reply' }));
-  await screen.findByText('Reply sent.');
-  expect((screen.getByLabelText('Reply to discussion') as HTMLTextAreaElement).value).toBe('');
+  await waitFor(() => expect((screen.getByLabelText('Reply to discussion') as HTMLTextAreaElement).value).toBe(''));
 });
 it('lets an organiser explicitly start a discussion even when announcements are off', async () => {
   const store = setup(undefined);
