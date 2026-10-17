@@ -1,0 +1,34 @@
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, expect, it, vi } from 'vitest';
+import App from './App';
+import { loadPublicBrief } from './matrix/publicBrief';
+import { connectMatrix } from './matrix/client';
+import { emptyActivity, emptyBrief } from './domain/brief';
+import { saveConnection } from './connectionCache';
+vi.mock('./matrix/publicBrief', async original => ({ ...await original<typeof import('./matrix/publicBrief')>(), loadPublicBrief: vi.fn() }));
+vi.mock('./matrix/client', async original => ({ ...await original<typeof import('./matrix/client')>(), connectMatrix: vi.fn() }));
+afterEach(() => { cleanup(); localStorage.clear(); window.history.replaceState(null, '', '/'); vi.clearAllMocks(); });
+it('shows activities first, then uses the visitor account to join without automatically signing up', async () => {
+  window.history.replaceState(null, '', '/?roomId=!public&publicServer=https%3A%2F%2Fview.example');
+  saveConnection({ homeserver: 'https://account.example', token: 'account-token', roomId: '!old' });
+  vi.mocked(loadPublicBrief).mockResolvedValue({ roomId: '!public', server: 'https://view.example', name: 'Public room', brief: { ...emptyBrief(), activities: [{ ...emptyActivity('meetup'), title: 'Public meetup' }] } });
+  vi.mocked(connectMatrix).mockRejectedValue(new Error('Test connection attempted'));
+  render(<App />);
+  await screen.findByText('Public meetup');
+  expect(screen.queryByLabelText('Homeserver URL')).toBeNull();
+  expect(connectMatrix).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in to sign up' }));
+  expect((screen.getByLabelText('Homeserver URL') as HTMLInputElement).value).toBe('https://account.example');
+  expect((screen.getByLabelText('Room ID') as HTMLInputElement).value).toBe('!public');
+  expect(window.location.hash).toBe('#activity-meetup');
+  fireEvent.click(screen.getByRole('button', { name: 'Connect with access token' }));
+  await waitFor(() => expect(connectMatrix).toHaveBeenCalledWith(expect.objectContaining({ homeserver: 'https://account.example', token: 'account-token', roomId: '!public', joinRoom: true })));
+});
+it('provides sign-in fallback when public access is unavailable', async () => {
+  window.history.replaceState(null, '', '/?roomId=!private&publicServer=https%3A%2F%2Fview.example');
+  vi.mocked(loadPublicBrief).mockRejectedValue(new Error('Public viewing is unavailable'));
+  render(<App />);
+  await screen.findByRole('alert');
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in or connect with a token' }));
+  expect(screen.getByLabelText('Homeserver URL')).toBeTruthy();
+});

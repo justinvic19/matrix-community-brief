@@ -3,6 +3,7 @@ import { emptyActivity, emptyBrief, type Activity, type Brief } from '../../doma
 import type { BriefStore, Snapshot } from '../../matrix/eventStore';
 import { BriefEditor } from './BriefEditor';
 import { Discussion } from './Discussion';
+import { BRIEF_SITE_URL } from '../../matrix/announcements';
 import { buildElementRoomUrl, defaultElementWebUrl } from '../../matrix/roomLink';
 
 function SummaryIcon({ kind }: { kind: 'date' | 'location' | 'people' }) {
@@ -85,6 +86,7 @@ export function BriefPage({ store, roomId, elementWebUrl = defaultElementWebUrl(
   useEffect(() => store.subscribe(setState), [store]);
   const brief = state.brief;
   const elementRoomUrl = buildElementRoomUrl(elementWebUrl, roomId, store.identity.userId);
+  const publicUrl = `${BRIEF_SITE_URL}?${new URLSearchParams({ roomId, publicServer: store.identity.homeserver })}`;
 
   function startEditing(activity?: Activity) {
     setMessage('');
@@ -133,6 +135,7 @@ export function BriefPage({ store, roomId, elementWebUrl = defaultElementWebUrl(
       <details className="room-technical-details"><summary>Room and connection details</summary><dl><dt>Room ID</dt><dd>{roomId}</dd><dt>Homeserver API URL</dt><dd>{store.identity.homeserver}</dd><dt>Element Web URL</dt><dd>{elementWebUrl}</dd>{state.roomCreatorUserId && <><dt>Room creator’s Matrix ID</dt><dd>{state.roomCreatorUserId}</dd></>}{state.roomCreatorServer && <><dt>Creator account’s homeserver</dt><dd>{state.roomCreatorServer}</dd></>}</dl></details>
     </header>
     {state.error && <p role="alert" className="error">{state.error}</p>}
+    {state.canEdit && <p className="muted"><a href={publicUrl} target="_blank" rel="noopener noreferrer">Open public viewing link</a> — requires public join access, publicly readable history, and server preview support.</p>}
     {message && <p role="status">{message}</p>}
     {editing ? <BriefEditor initial={editing.activity} canEdit={state.canEdit} changedRemotely={editing.baseline !== JSON.stringify(brief)} onCancel={() => setEditing(null)} onSave={saveActivity} /> : <>
       {brief ? <>

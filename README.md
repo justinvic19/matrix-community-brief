@@ -87,6 +87,39 @@ The saved manual token is not encrypted in local storage and is accessible to sc
 
 ## Manual integration checklist
 
+### Public viewing
+
+New activity-parent links carry `roomId` and `publicServer` parameters. Organisers
+can also use **Open public viewing link** on the connected brief and share that URL.
+`publicServer` is an HTTPS Matrix client API base URL with access to the room; it
+does not replace the visitor's account homeserver. Room IDs alone, particularly
+opaque v12 IDs, do not identify a server from which to fetch state. Older links
+without the viewing-server parameter continue to open the connection form.
+
+The landing page shows a read-only activity list before sign-in only when the room
+has both public join rules and `world_readable` history, is unencrypted, and the
+server permits preview reads. **Public join access alone is insufficient.** The
+app does not change room visibility or permissions. If the server requires a token,
+it requests a disposable guest account and keeps that guest token only in memory.
+Guest registration is optional server functionality; if disabled, the page offers
+sign-in instead. Viewing never joins the room and never uses the visitor's saved
+token or cookies. Guest accounts may remain on the server after the tab closes.
+
+Public viewing shows brief content only, without sign-up counts, participant lists
+or discussion history. **Refresh** fetches a new snapshot and rechecks visibility.
+It is not live sync. **Sign in to sign up** opens the connection form with the room
+and activity retained and an explicit **Join this room when connecting** checkbox.
+The visitor uses their own account homeserver, signs in or pastes a token, and then
+confirms sign-up in the authenticated activity view. Joining can still be refused
+by the server. No sign-up or message is sent merely by signing in.
+
+Test with a signed-out browser on a server supporting guest previews, then repeat
+with restricted history, an encrypted room and a server with guest access disabled.
+Check that changing history visibility prevents subsequent public reads. Automated
+tests mock these cases; live server compatibility still needs verification.
+
+See the [Matrix guest-access and room-preview specification](https://spec.matrix.org/v1.19/client-server-api/#guest-access).
+
 ### Room announcements
 
 Each activity has one linked parent room message, with creation, update, removal,

@@ -13,7 +13,8 @@ it('announces only after accepted saves, avoids duplicate no-op notices, and dis
   expect(h.client.sendEvent).not.toHaveBeenCalled();
   await h.store.save(brief);
   expect(h.client.sendEvent).toHaveBeenCalledTimes(2);
-  expect(h.client.sendEvent.mock.calls[1]?.[2]).toEqual(expect.objectContaining({ formatted_body: expect.stringContaining('>Notice test</a>') }));
+  expect(h.client.sendEvent.mock.calls[0]?.[2]).toEqual(expect.objectContaining({ formatted_body: expect.stringContaining('Time to be confirmed') }));
+  expect(h.client.sendEvent.mock.calls[1]?.[2]).toEqual(expect.objectContaining({ body: 'Activity created: Notice test.', formatted_body: 'Activity created: Notice test.' }));
   await h.store.save(brief);
   expect(h.client.sendEvent).toHaveBeenCalledTimes(2);
   h.client.sendEvent.mockRejectedValueOnce(new Error('notice failed'));

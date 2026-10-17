@@ -7,6 +7,7 @@ export interface Connection {
   homeserver: string;
   token: string;
   roomId: string;
+  joinRoom?: boolean;
   refreshToken?: string;
   oauthClientId?: string;
   deviceId?: string;
@@ -40,6 +41,7 @@ export async function connectMatrix(input: Connection): Promise<BriefStore> {
   let refreshToken = input.refreshToken;
   try {
     userId = (await auth.whoami()).user_id;
+    if (input.joinRoom) await auth.joinRoom(input.roomId);
     accessToken = auth.getAccessToken() ?? accessToken;
     refreshToken = auth.getRefreshToken() ?? refreshToken;
   } catch (error) { throw new Error(matrixError(error)); }
@@ -85,7 +87,7 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
     for (const [activityId, activitySignups] of latest) signups[activityId] = [...activitySignups].filter(([, signedUp]) => signedUp).map(([user]) => user);
     return signups;
   };
-  const discussions = createDiscussions(client, roomId, canSignup, () => canEdit() && !!room()?.currentState.maySendStateEvent(DISCUSSION_EVENT, userId));
+  const discussions = createDiscussions(client, roomId, canSignup, () => canEdit() && !!room()?.currentState.maySendStateEvent(DISCUSSION_EVENT, userId), homeserver);
   const emit = () => { listeners.forEach(listener => listener(snapshot)); discussions.refresh(); };
   const refresh = () => {
     if (closed || !prepared) return;
@@ -179,7 +181,7 @@ export function createRoomStore(client: MatrixClient, roomId: string, userId: st
               if (!canSignup()) throw new Error('Message sending is unavailable.');
               const id = notice['com.example.community_brief.activity'];
               const activity = content.activities.find(item => item.id === id) ?? before?.activities.find(item => item.id === id);
-              if (activity) await discussions.announce(id, notice, activityParent(activity, roomId));
+              if (activity) await discussions.announce(id, notice, activityParent(activity, roomId, homeserver));
             } catch {
               warning = 'The brief was saved, but one or more room announcements could not be confirmed. Check Element before posting a notice manually.';
             }

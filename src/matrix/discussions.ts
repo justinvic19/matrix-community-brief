@@ -25,9 +25,11 @@ export function discussionMessage(event: MatrixEvent, rootId: string): Discussio
   return { id: event.getId()!, sender: event.getSender() ?? 'Unknown sender', body, timestamp: event.getTs() };
 }
 
-export function createDiscussions(client: MatrixClient, roomId: string, canSend: () => boolean, canStart: () => boolean) {
+export function createDiscussions(client: MatrixClient, roomId: string, canSend: () => boolean, canStart: () => boolean, publicServer?: string) {
   let closed = false;
   const roots = new Map<string, string>();
+  const parentMessages = new Map<string, Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>>();
+  const refreshedParents = new Map<string, string>();
   const observed = new Map<string, string | undefined>();
   const pendingRoots = new Map<string, string>();
   const locks = new Map<string, Promise<void>>();
@@ -55,6 +57,7 @@ export function createDiscussions(client: MatrixClient, roomId: string, canSend:
     if (!rootId) return undefined;
     // Do not mistake network errors or forbidden history for a deleted parent.
     const event = await client.fetchRoomEvent(roomId, rootId);
+    parentMessages.set(rootId, event);
     if (closed) throw new Error('Connection closed.');
     if (event.unsigned?.redacted_because || !event.content || Object.keys(event.content).length === 0) {
       roots.delete(id);
@@ -89,7 +92,7 @@ export function createDiscussions(client: MatrixClient, roomId: string, canSend:
       emit(id);
     },
     async start(activity) {
-      await announce(activity.id, activityParent(activity, roomId), undefined, true);
+      await announce(activity.id, activityParent(activity, roomId, publicServer), undefined, true);
     },
     async reply(id, input) {
       const body = input.trim();
@@ -112,6 +115,18 @@ export function createDiscussions(client: MatrixClient, roomId: string, canSend:
         if (!rootId) { rootId = (await client.sendEvent(roomId, EventType.RoomMessage, parent)).event_id; pendingRoots.set(id, rootId); }
         await client.sendStateEvent(roomId, DISCUSSION_EVENT, { rootEventId: rootId }, id);
         roots.set(id, rootId); pendingRoots.delete(id);
+      }
+      const original = parentMessages.get(rootId);
+      // Matrix only allows the original sender to edit a parent. Preserve its event ID
+      // and existing replies rather than replacing an intact thread.
+      if (original?.sender && original.sender === client.getUserId() && original.content?.formatted_body !== parent.formatted_body && refreshedParents.get(rootId) !== parent.formatted_body) {
+        await client.sendEvent(roomId, EventType.RoomMessage, {
+          ...parent,
+          body: `* ${parent.body}`,
+          'm.new_content': parent,
+          'm.relates_to': { rel_type: RelationType.Replace, event_id: rootId },
+        });
+        refreshedParents.set(rootId, parent.formatted_body);
       }
       if (!rootOnly) await client.sendEvent(roomId, EventType.RoomMessage, { ...notice, 'm.relates_to': threadRelation(rootId) });
       emit(id);

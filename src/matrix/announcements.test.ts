@@ -8,14 +8,19 @@ it('adds a compact UTC schedule to the linked parent, with an unscheduled fallba
   expect(activityParent({ ...activity, scheduledAt: '2026-10-24T10:00:00+01:00' }, '!room').body).toContain('24 Oct, 09:00 UTC');
   expect(activityParent(activity, '!room').body).toContain('Time to be confirmed');
 });
-it('includes the exact room ID in lifecycle and signup links', () => {
+it('keeps the room and activity link on the parent only', () => {
   const roomId = '!opaque:example.org';
-  const notices = [activityNotice(activity, 'Signed up for', roomId), ...activityAnnouncements(null, brief, roomId), ...activityAnnouncements(brief, emptyBrief(), roomId)];
+  const notices = [activityParent(activity, roomId)];
   for (const notice of notices) {
-    const link = new URL(notice.body.slice(notice.body.indexOf('https://')));
+    const link = new URL(notice.body.slice(notice.body.indexOf('https://')).split('\n')[0]);
     expect(link.searchParams.get('roomId')).toBe(roomId);
     expect(link.hash).toBe('#activity-a%2F%23');
     expect([...link.searchParams.keys()]).toEqual(['roomId']);
+  }
+  const replies = [...activityAnnouncements(null, brief, roomId), ...activityAnnouncements(brief, { ...brief, activities: [{ ...activity, location: 'Hall' }] }, roomId), ...activityAnnouncements(brief, emptyBrief(), roomId)];
+  for (const reply of replies) {
+    expect(reply.body).not.toContain('https://');
+    expect(reply.formatted_body).not.toContain('<a ');
   }
 });
 it('links and escapes activity names, with a plain-text fallback and no mentions', () => {

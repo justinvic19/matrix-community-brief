@@ -16,9 +16,10 @@ export function communityNotice(roomId: string) {
   };
 }
 
-export function activityNotice(activity: Activity, prefix: string, roomId?: string) {
+export function activityNotice(activity: Activity, prefix: string, roomId?: string, publicServer?: string) {
   const target = new URL(BRIEF_SITE_URL);
   if (roomId) target.searchParams.set('roomId', roomId);
+  if (publicServer) target.searchParams.set('publicServer', publicServer);
   target.hash = `activity-${encodeURIComponent(activity.id)}`;
   const url = target.href;
   return {
@@ -32,8 +33,8 @@ export function activityNotice(activity: Activity, prefix: string, roomId?: stri
 }
 
 // Settings-only changes and updatedAt changes do not announce an activity update.
-export function activityParent(activity: Activity, roomId: string) {
-  const notice = activityNotice(activity, 'Activity:', roomId);
+export function activityParent(activity: Activity, roomId: string, publicServer?: string) {
+  const notice = activityNotice(activity, 'Activity:', roomId, publicServer);
   const time = activity.scheduledAt
     ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' }).format(new Date(activity.scheduledAt)) + ' UTC'
     : 'Time to be confirmed';
@@ -44,6 +45,10 @@ function activityContent({ announcementLevel: _level, ...activity }: Activity) {
   return JSON.stringify(activity);
 }
 
+export function activityReply(activity: Activity, prefix: string) {
+  return { ...activityNotice(activity, prefix), body: `${prefix} ${activity.title}.`, formatted_body: `${escapeHtml(prefix)} ${escapeHtml(activity.title)}.` };
+}
+
 export function activityAnnouncements(before: Brief | null, after: Brief, roomId?: string) {
   const previous = new Map((before?.activities ?? []).map(activity => [activity.id, activity]));
   const nextIds = new Set(after.activities.map(activity => activity.id));
@@ -52,11 +57,11 @@ export function activityAnnouncements(before: Brief | null, after: Brief, roomId
     const old = previous.get(activity.id);
     const level = activity.announcementLevel ?? 'all';
     if (level === 'off') continue;
-    if (!old) messages.push(activityNotice(activity, 'Activity created:', roomId));
-    else if (level === 'all' && activityContent(old) !== activityContent(activity)) messages.push(activityNotice(activity, 'Activity updated:', roomId));
+    if (!old) messages.push(activityReply(activity, 'Activity created:'));
+    else if (level === 'all' && activityContent(old) !== activityContent(activity)) messages.push(activityReply(activity, 'Activity updated:'));
   }
   for (const activity of previous.values()) {
-    if (!nextIds.has(activity.id) && activity.announcementLevel !== 'off') messages.push(activityNotice(activity, 'Activity removed:', roomId));
+    if (!nextIds.has(activity.id) && activity.announcementLevel !== 'off') messages.push(activityReply(activity, 'Activity removed:'));
   }
   return messages;
 }

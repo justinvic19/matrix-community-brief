@@ -6,8 +6,13 @@ import { defaultConnection, forgetConnection, loadLinkedConnection, saveConnecti
 import { defaultElementWebUrl, matrixServerName, normalizeElementWebUrl } from './matrix/roomLink';
 import type { BriefStore } from './matrix/eventStore';
 import { BriefPage } from './features/community-brief/BriefPage';
+import { PublicBriefPage } from './features/community-brief/PublicBriefPage';
+import { publicTarget } from './matrix/publicBrief';
 
 export default function App() {
+  const [publicRoom] = useState(() => publicTarget(window.location.href));
+  const [showConnection, setShowConnection] = useState(false);
+  const [joinOnConnect, setJoinOnConnect] = useState(false);
   const [store, setStore] = useState<BriefStore | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -62,6 +67,7 @@ export default function App() {
       homeserver,
       token,
       roomId: selectedRoomId,
+      ...(joinOnConnect ? { joinRoom: true } : {}),
       refreshToken: session?.refreshToken,
       oauthClientId: session?.oauthClientId,
       deviceId: session?.deviceId,
@@ -127,7 +133,12 @@ export default function App() {
   }
 
   return <main><header><div className="eyebrow">MATRIX HACK DAY · EXPLORATORY PROTOTYPE</div><h1>Living Community Brief</h1><p>The current plan, shared with your community.</p></header>
-    {!store ? <form className="card" onSubmit={async event => {
+    {!store && publicRoom && !showConnection ? <PublicBriefPage target={publicRoom} onConnect={activityId => {
+      changeConnection('roomId', publicRoom.roomId);
+      if (activityId) window.location.hash = `activity-${encodeURIComponent(activityId)}`;
+      setShowConnection(true);
+      setJoinOnConnect(true);
+    }} /> : !store ? <form className="card" onSubmit={async event => {
       event.preventDefault();
       if (!connection.token.trim()) { setError('Paste an access token, or use Sign in with Matrix for automatic renewal.'); return; }
       const attempt = ++generation.current;
@@ -141,6 +152,11 @@ export default function App() {
         <h3>Room to open</h3>
         <label>Room ID<input name="roomId" placeholder="!room:example.org" value={connection.roomId} onChange={e => changeConnection('roomId', e.target.value)} required /></label>
         <h3>Your Matrix account</h3>
+        {publicRoom && <>
+          <p className="notice">Connect using your own Matrix account. After connecting, confirm your sign-up on the activity.</p>
+          <label className="join-public-room"><input type="checkbox" checked={joinOnConnect} onChange={event => setJoinOnConnect(event.target.checked)} /> Join this room when connecting</label>
+          <button type="button" className="secondary" disabled={busy} onClick={() => setShowConnection(false)}>Back to public activities</button>
+        </>}
         <p className="muted" id="homeserver-help">Use your account's homeserver API URL, not the room creator's server or the Element website. Your access token must belong to this server. Changing server clears the manual token.</p>
           <label>Homeserver URL<input name="homeserver" type="url" placeholder="https://matrix.org" value={connection.homeserver} onChange={e => changeConnection('homeserver', e.target.value)} aria-describedby="homeserver-help" required /></label>
         <p className="muted">Sign in through your homeserver. No pasted token needed.</p>
