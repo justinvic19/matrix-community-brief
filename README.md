@@ -1,5 +1,7 @@
 # Living Community Brief
 
+<img width="832" height="458" alt="image" src="https://github.com/user-attachments/assets/790a275f-e4ec-4502-92e7-bbe7d327f886" />
+
 A Matrix activity interface for community organisers and members, built during the 17 October 2026 Matrix Hack Day. Organisers can create and edit activities; members can read the current plan, sign up and discuss it. It started as a website backed by Matrix room state and was tested alongside Element chat.
 
 A later extension connects this interface to WhatsApp through the bridge and Tool Hub from [Chat Hackers](https://github.com/Chat-Hackers). It was added for the Chat Hackers initiative during the hack day, letting a WhatsApp group create activities on the same board.
